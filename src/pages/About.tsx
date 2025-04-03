@@ -62,7 +62,7 @@ const About = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-serif font-medium mb-6">Vår Historia & Vision</h1>
-            <p className="text-lg md:text-xl mb-4">Svenskt Konstnärscentrum – där kreativitet möter kvalitet sedan 1982</p>
+            <p className="text-lg md:text-xl mb-4">Svenskt Konstnärscentrum – i konstens tjänst sedan 1996</p>
           </div>
         </div>
       </section>
@@ -74,13 +74,13 @@ const About = () => {
             <div>
               <h2 className="text-3xl font-serif font-medium mb-6 brush-underline inline-block">Vår Berättelse</h2>
               <p className="text-lg mb-4">
-                Svenskt Konstnärscentrum grundades 1982 av Anna Bergström, en passionerad konstnär med en vision om att skapa en plats där konstnärer kunde hitta material av högsta kvalitet och samtidigt få expertråd och inspiration.
+                Svenskt Konstnärscentrum grundades 1996 i Kristianstad. Vi har sedan dess växt och etablerat oss som en ledande leverantör av konstnärsmaterial i Sverige, med fokus på kvalitet och service.
               </p>
               <p className="text-lg mb-4">
-                Vad som började som en liten butik i centrala Stockholm har idag vuxit till en betydande aktör i den svenska konstvärlden, med både fysiska butiker och en omfattande webbutik.
+                Verksamheten omfattar försäljning, packning, distribution, rådgivning, IT-utveckling och kundtjänst. Vår butik är belägen i centrala Kristianstad, där vi levererar konstnärsmaterial till professionella, företag och skolor.
               </p>
               <p className="text-lg mb-4">
-                Genom åren har vi byggt upp ett rykte för vår expertis, vårt breda sortiment och vår passion för att hjälpa kreativa människor att nå sin fulla potential. Vår filosofi har alltid varit att kvalitet lönar sig i längden, och vi står stolt bakom varje produkt vi säljer.
+                Med över 30 000 artiklar erbjuder vi ett av marknadens bredaste sortiment av konstnärsmaterial för alla intresserade. Vårt mål är att ständigt utöka urvalet varumärken för att passa alla våra kunders behov och önskemål.
               </p>
             </div>
             
@@ -91,8 +91,8 @@ const About = () => {
                 className="rounded-lg shadow-lg"
               />
               <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-lg hidden md:block">
-                <p className="text-xl font-serif">40+ år</p>
-                <p className="text-sm text-muted-foreground">av konstnärlig expertis</p>
+                <p className="text-xl font-serif">Sedan 1996</p>
+                <p className="text-sm text-muted-foreground">i konstens tjänst</p>
               </div>
             </div>
           </div>
@@ -161,7 +161,7 @@ const About = () => {
             <div>
               <h2 className="text-3xl font-serif font-medium mb-6 brush-underline inline-block">Besök Vår Butik</h2>
               <p className="text-lg mb-6">
-                Vi välkomnar dig till vår butik i centrala Stockholm. Här kan du utforska vårt breda sortiment, få personlig rådgivning och delta i våra regelbundna workshops och evenemang.
+                Vi välkomnar dig till vår butik i centrala Kristianstad. Här kan du utforska vårt breda sortiment, få personlig rådgivning och hitta allt du behöver för ditt konstnärskap.
               </p>
               
               <div className="flex items-start mb-4">
@@ -169,8 +169,8 @@ const About = () => {
                 <div>
                   <h4 className="font-medium">Adress</h4>
                   <p className="text-muted-foreground">
-                    Konstnärsvägen 12<br />
-                    114 36 Stockholm
+                    Götagatan 11<br />
+                    291 53 Kristianstad
                   </p>
                 </div>
               </div>
@@ -181,11 +181,11 @@ const About = () => {
                   <ul className="text-muted-foreground">
                     <li className="flex justify-between">
                       <span>Måndag-Fredag</span>
-                      <span>10:00 - 18:00</span>
+                      <span>10:00 - 17:00</span>
                     </li>
                     <li className="flex justify-between">
                       <span>Lördag</span>
-                      <span>11:00 - 16:00</span>
+                      <span>Stängt</span>
                     </li>
                     <li className="flex justify-between">
                       <span>Söndag</span>
@@ -199,11 +199,11 @@ const About = () => {
                   <ul className="text-muted-foreground">
                     <li className="flex justify-between">
                       <span>Telefon</span>
-                      <span>08-123 45 67</span>
+                      <span>044-10 22 44</span>
                     </li>
                     <li className="flex justify-between">
                       <span>Email</span>
-                      <span className="text-primary">info@konstnarscentrum.se</span>
+                      <span className="text-primary">info@skabuk.se</span>
                     </li>
                   </ul>
                 </div>

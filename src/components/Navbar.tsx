@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, ShoppingBag, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import SKCLogo from './SKCLogo';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +19,7 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
-              <span className="font-serif text-2xl font-bold">Konstnärs<span className="text-primary">centrum</span></span>
+              <SKCLogo />
             </Link>
           </div>
 

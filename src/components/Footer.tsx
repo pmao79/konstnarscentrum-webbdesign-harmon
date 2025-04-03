@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
+import SKCLogo from './SKCLogo';
 
 const Footer = () => {
   return (
@@ -11,7 +12,7 @@ const Footer = () => {
           {/* Logo and Description */}
           <div className="col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center mb-4">
-              <span className="font-serif text-2xl font-bold">Konstnärs<span className="text-primary">centrum</span></span>
+              <SKCLogo />
             </Link>
             <p className="text-muted-foreground mb-4">
               Din butik för kvalitetsmaterial till konstnärens kreativa värld.
@@ -56,11 +57,28 @@ const Footer = () => {
           <div className="col-span-1">
             <h3 className="font-serif text-lg font-medium mb-4">Kontakt</h3>
             <address className="not-italic space-y-2 text-muted-foreground">
-              <p>Konstnärsvägen 12</p>
-              <p>114 36 Stockholm</p>
-              <p>Telefon: 08-123 45 67</p>
-              <p>Email: info@konstnarscentrum.se</p>
+              <p>Götagatan 11</p>
+              <p>291 53 Kristianstad</p>
+              <p>Telefon: 044-10 22 44</p>
+              <p>Email: info@skabuk.se</p>
             </address>
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">Öppettider</h4>
+              <ul className="text-muted-foreground">
+                <li className="flex justify-between">
+                  <span>Mån-Fre</span>
+                  <span>10:00 - 17:00</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Lördag</span>
+                  <span>Stängt</span>
+                </li>
+                <li className="flex justify-between">
+                  <span>Söndag</span>
+                  <span>Stängt</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
