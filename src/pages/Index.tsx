@@ -1,8 +1,9 @@
+
 import React from 'react';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Palette, Brush, BookOpen, Easel, ScrollText, ShoppingBag } from 'lucide-react';
+import { Palette, Brush, BookOpen, Palette2, ScrollText, ShoppingBag } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const categories = [
@@ -35,7 +36,7 @@ const categories = [
     name: "Stafflier",
     description: "Studio & plein-air",
     image: "https://images.unsplash.com/photo-1579762593175-20226054cad0?q=80&w=2071&auto=format&fit=crop",
-    icon: Easel,
+    icon: Palette2,
     path: "/produkter/stafflier"
   }
 ];
