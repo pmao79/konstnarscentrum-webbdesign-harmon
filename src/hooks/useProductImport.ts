@@ -194,17 +194,16 @@ export const useProductImport = () => {
           
           console.log("Skapade huvudprodukt:", masterProduct);
           
-          // Spara varianter
-          const { successCount: batchSuccess, failedCount: batchFailed, errors } = 
-            await saveProductVariants(variants, masterProduct.id, 'excel');
+          // Spara varianter med förbättrad felhantering
+          const saveResult = await saveProductVariants(variants, masterProduct.id, 'excel');
+          console.log(`Satsresultat: Lyckade=${saveResult.successCount}, Misslyckade=${saveResult.failedCount}`);
           
-          console.log(`Satsresultat: Lyckade=${batchSuccess}, Misslyckade=${batchFailed}`);
-          successCount += batchSuccess;
-          failedCount += batchFailed;
+          successCount += saveResult.successCount;
+          failedCount += saveResult.failedCount;
           
           // Samla specifika fel för detaljerad felsökning
-          if (errors && errors.length > 0) {
-            specificErrors.push(...errors);
+          if (saveResult.errors && saveResult.errors.length > 0) {
+            specificErrors.push(...saveResult.errors);
           }
         } catch (error: any) {
           console.error('Fel vid bearbetning av produktgrupp:', error);
@@ -230,12 +229,31 @@ export const useProductImport = () => {
       }
       
       if (successCount === 0) {
-        const errorMsg = "Ingen produkt kunde importeras.";
-        const detailMsg = specificErrors.length > 0 
-          ? `Vanligaste felet: ${specificErrors[0].message || 'Okänt fel'}`
-          : "Detta kan bero på databehörigheter eller att det fanns konflikter i artikelnummer.";
+        // Ge mer detaljerad information om felen
+        let detailMsg = "Detta kan bero på databehörigheter eller att det fanns konflikter i artikelnummer.";
         
-        throw new Error(`${errorMsg} ${detailMsg} Kontrollera dina behörigheter och försök igen.`);
+        if (specificErrors.length > 0) {
+          const commonErrors = specificErrors.reduce((acc, curr) => {
+            const key = curr.code || curr.message;
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+          }, {});
+          
+          // Hitta den vanligaste feltypen
+          const mostCommonError = Object.entries(commonErrors)
+            .sort((a, b) => b[1] - a[1])[0];
+          
+          if (mostCommonError) {
+            detailMsg = `Vanligaste felet (${mostCommonError[1]} gånger): ${
+              mostCommonError[0].includes('23505') ? 'Artikelnummer måste vara unika' : 
+              mostCommonError[0].includes('42501') ? 'Saknar databasbehörighet' : 
+              mostCommonError[0]
+            }`;
+          }
+        }
+        
+        const errorMsg = "Ingen produkt kunde importeras.";
+        throw new Error(`${errorMsg} ${detailMsg}`);
       }
       
       // Logga importresultat
@@ -266,7 +284,7 @@ export const useProductImport = () => {
     } catch (error: any) {
       console.error('Fel vid bearbetning av Excel-fil:', error);
       
-      // Förbättrad felhantering
+      // Förbättrad felhantering med mer specifika meddelanden
       let errorMsg = error.message || "Ett fel uppstod vid bearbetning av Excel-filen.";
       
       // Kontrollera efter vanliga databasfel
@@ -276,7 +294,7 @@ export const useProductImport = () => {
             errorMsg = "Behörighetsfel: Saknar behörighet att skriva till databasen.";
             break;
           case "23505":
-            errorMsg = "Unik begränsning misslyckades. Troligen finns redan produkten i databasen.";
+            errorMsg = "Unik begränsning misslyckades. Troligen finns artikelnumren redan i databasen.";
             break;
           case "23503":
             errorMsg = "Referensfel. Kan inte skapa produkt eftersom en relaterad post saknas.";

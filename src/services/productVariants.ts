@@ -18,6 +18,54 @@ export const saveProductVariants = async (
 
     console.log(`Processing ${variants.length} variants for master ID: ${masterId}`);
     
+    // Verifiera först om användaren har behörighet att skriva till products-tabellen
+    const testVariant = {
+      name: 'TEST_PERMISSION_CHECK',
+      article_number: `TEST_${Date.now()}`,
+      price: 0,
+      stock_status: 0,
+      master_product_id: masterId,
+      source
+    };
+    
+    try {
+      const { error: permissionError } = await supabase
+        .from('products')
+        .insert(testVariant)
+        .select('id')
+        .single();
+      
+      if (permissionError) {
+        console.error('Behörighetsfel:', permissionError);
+        return { 
+          successCount: 0, 
+          failedCount: variants.length, 
+          errors: [{
+            code: permissionError.code,
+            message: `Behörighetsfel: ${permissionError.message}`,
+            details: permissionError.details || 'Saknar behörighet att skriva till produkttabellen'
+          }]
+        };
+      } else {
+        // Ta bort testposten om den skapades framgångsrikt
+        const { data } = await supabase
+          .from('products')
+          .delete()
+          .eq('article_number', testVariant.article_number);
+          
+        console.log('Behörighetstest lyckades');
+      }
+    } catch (permErr) {
+      console.error('Fel vid behörighetskontroll:', permErr);
+      return { 
+        successCount: 0, 
+        failedCount: variants.length, 
+        errors: [{
+          message: `Kunde inte verifiera skrivbehörighet: ${permErr.message}`,
+        }]
+      };
+    }
+    
     for (let i = 0; i < variants.length; i += BATCH_SIZE) {
       const batch = variants.slice(i, i + BATCH_SIZE).map(variant => ({
         ...variant,
@@ -25,7 +73,7 @@ export const saveProductVariants = async (
         source
       }));
       
-      console.log(`Saving batch ${i/BATCH_SIZE + 1} with ${batch.length} variants`);
+      console.log(`Sparar batch ${i/BATCH_SIZE + 1} med ${batch.length} varianter`);
       
       try {
         const { data, error: variantError } = await supabase
@@ -37,34 +85,55 @@ export const saveProductVariants = async (
           .select();
         
         if (variantError) {
-          console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, variantError);
-          console.error(`SQL Error code: ${variantError.code}, Details: ${variantError.details}`);
+          console.error(`Error i batch ${i/BATCH_SIZE + 1}:`, variantError);
+          console.error(`SQL Error code: ${variantError.code}, Detaljer: ${variantError.details}`);
+          
+          // Hantera specifika SQL-felkoder
+          let errorMessage = variantError.message;
+          if (variantError.code === '23505') {
+            errorMessage = `Dubblett hittades i artikelnummer: ${variantError.details || 'Kontrollera att alla artikelnummer är unika'}`;
+          } else if (variantError.code === '42501') {
+            errorMessage = `Saknar behörighet: ${variantError.message}`;
+          } else if (variantError.code === '23503') {
+            errorMessage = `Referensfel: ${variantError.details || 'Kontrollera att alla nödvändiga relationer finns'}`;
+          }
+          
           failedCount += batch.length;
           errors.push({
             batchIndex: i/BATCH_SIZE + 1,
             code: variantError.code,
-            message: variantError.message,
+            message: errorMessage,
             details: variantError.details
           });
         } else {
-          console.log(`Successfully saved ${data?.length || 0} products in batch`);
+          console.log(`Sparade ${data?.length || 0} produkter i batch framgångsrikt`);
           successCount += data?.length || 0;
           
           // Om antalet uppdaterade rader är mindre än batchstorlek, räkna resten som misslyckade
           if (data && data.length < batch.length) {
             const missingCount = batch.length - data.length;
             console.warn(`${missingCount} produkter i batchen verkar inte ha uppdaterats`);
+            
+            // Försök identifiera vilka produkter som inte sparades
+            const savedIds = data.map(item => item.article_number);
+            const missedProducts = batch
+              .filter(item => !savedIds.includes(item.article_number))
+              .map(p => p.article_number)
+              .slice(0, 5);
+            
             failedCount += missingCount;
             errors.push({
               batchIndex: i/BATCH_SIZE + 1,
               code: 'INCOMPLETE_BATCH',
               message: `${missingCount} produkter bearbetades inte`,
-              details: 'Några produkter i batchen kunde inte sparas'
+              details: `Några produkter kunde inte sparas. Exempel: ${missedProducts.join(', ')}${
+                missedProducts.length < missingCount ? '...' : ''
+              }`
             });
           }
         }
       } catch (batchError: any) {
-        console.error(`Exception in batch ${i/BATCH_SIZE + 1}:`, batchError);
+        console.error(`Exception i batch ${i/BATCH_SIZE + 1}:`, batchError);
         failedCount += batch.length;
         errors.push({
           batchIndex: i/BATCH_SIZE + 1,
@@ -74,9 +143,16 @@ export const saveProductVariants = async (
       }
     }
 
-    return { successCount, failedCount, errors };
+    return { 
+      successCount, 
+      failedCount, 
+      errors, 
+      errorSummary: errors.length > 0 ? 
+        `${errors.length} fel uppstod: ${errors[0].message}${errors.length > 1 ? ' (och fler...)' : ''}` : 
+        null 
+    };
   } catch (error: any) {
-    console.error('Exception in saveProductVariants:', error);
+    console.error('Exception i saveProductVariants:', error);
     failedCount += variants.length;
     return { 
       successCount, 
@@ -85,7 +161,8 @@ export const saveProductVariants = async (
         general: true,
         message: error.message,
         stack: error.stack
-      }]
+      }],
+      errorSummary: `Generellt fel: ${error.message}`
     };
   }
 };
