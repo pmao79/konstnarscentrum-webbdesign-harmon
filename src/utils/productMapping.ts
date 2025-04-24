@@ -1,5 +1,6 @@
 
 import { ColumnMappingType } from '@/types/importing';
+import { categorizeProduct } from './productCategorization';
 
 export const mapProductData = (product: any, columnMapping: keyof ColumnMappingType, currentMapping: any) => {
   if (!product || Object.keys(product).length === 0) return null;
@@ -28,7 +29,8 @@ export const mapProductData = (product: any, columnMapping: keyof ColumnMappingT
     imageUrl = product[currentMapping.imageUrl] || null;
   }
   
-  return {
+  // Create a base product object
+  const mappedProduct = {
     article_number: String(product[currentMapping.articleNumber]),
     name: String(product[currentMapping.productName]),
     description,
@@ -38,4 +40,7 @@ export const mapProductData = (product: any, columnMapping: keyof ColumnMappingT
     category,
     supplier
   };
+  
+  // Use our categorization function to enhance the product data
+  return categorizeProduct(mappedProduct);
 };

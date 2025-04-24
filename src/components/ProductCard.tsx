@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
 import { ShoppingBag, Star } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { cleanSupplierName } from '@/utils/productCategorization';
 
 interface ProductCardProps {
   product: {
@@ -51,7 +53,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   // Extract brand/supplier name for display
   const displaySupplier = product.supplier ? 
-    product.supplier.replace(' - Konstnärsmaterial', '') : 
+    cleanSupplierName(product.supplier) : 
     product.category || "Övrigt";
   
   return (

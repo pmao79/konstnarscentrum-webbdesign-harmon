@@ -58,7 +58,7 @@ export const useProducts = (filters: FilterOptions = {}) => {
 
       if (subcategory) {
         console.log("Filtering by subcategory:", subcategory);
-        // Check if we should look in name or description for subcategory
+        // Look for subcategory in name or description
         const subcategoryFilter = `%${subcategory}%`;
         countQuery = countQuery.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
         query = query.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
@@ -85,7 +85,7 @@ export const useProducts = (filters: FilterOptions = {}) => {
       if (search) {
         console.log("Searching for:", search);
         const searchTerm = `%${search}%`;
-        const searchFilter = `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm},supplier.ilike.${searchTerm}`;
+        const searchFilter = `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm},supplier.ilike.${searchTerm},category.ilike.${searchTerm}`;
         countQuery = countQuery.or(searchFilter);
         query = query.or(searchFilter);
       }

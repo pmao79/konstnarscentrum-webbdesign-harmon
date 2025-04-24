@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { batchCategorizeProducts } from "@/utils/productCategorization";
 
 export const saveImportLog = async (params: {
   fileName: string,
@@ -50,8 +51,11 @@ export const saveProductVariants = async (variants: any[], masterId: string) => 
   let successCount = 0;
   let failedCount = 0;
 
-  for (let i = 0; i < variants.length; i += BATCH_SIZE) {
-    const batch = variants.slice(i, i + BATCH_SIZE).map(variant => ({
+  // Apply categorization to all variants
+  const categorizedVariants = batchCategorizeProducts(variants);
+  
+  for (let i = 0; i < categorizedVariants.length; i += BATCH_SIZE) {
+    const batch = categorizedVariants.slice(i, i + BATCH_SIZE).map(variant => ({
       ...variant,
       master_product_id: masterId
     }));
@@ -72,4 +76,107 @@ export const saveProductVariants = async (variants: any[], masterId: string) => 
   }
 
   return { successCount, failedCount };
+};
+
+/**
+ * Recategorize existing products in the database
+ */
+export const categorizeExistingProducts = async () => {
+  const BATCH_SIZE = 100;
+  let processedCount = 0;
+  let updatedCount = 0;
+  let currentPage = 0;
+  let hasMore = true;
+  
+  while (hasMore) {
+    // Fetch a batch of products
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*')
+      .range(currentPage * BATCH_SIZE, (currentPage + 1) * BATCH_SIZE - 1);
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+      break;
+    }
+    
+    if (!products || products.length === 0) {
+      hasMore = false;
+      break;
+    }
+    
+    processedCount += products.length;
+    
+    // Apply categorization
+    const categorizedProducts = batchCategorizeProducts(products);
+    
+    // Update each product
+    for (const product of categorizedProducts) {
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({
+          category: product.category,
+          supplier: product.supplier
+        })
+        .eq('id', product.id);
+      
+      if (!updateError) {
+        updatedCount++;
+      }
+    }
+    
+    currentPage++;
+    
+    // Check if we're done
+    if (products.length < BATCH_SIZE) {
+      hasMore = false;
+    }
+  }
+  
+  return { processedCount, updatedCount };
+};
+
+/**
+ * Function to sync categories to the categories table
+ */
+export const syncCategoriesToTable = async () => {
+  // Get all unique categories from products
+  const { data: uniqueCategories, error: categoriesError } = await supabase
+    .from('products')
+    .select('category')
+    .not('category', 'is', null)
+    .order('category');
+  
+  if (categoriesError) {
+    console.error('Error fetching categories:', categoriesError);
+    return { success: false, error: categoriesError };
+  }
+  
+  // Filter out duplicates
+  const categorySet = new Set<string>();
+  uniqueCategories?.forEach(item => {
+    if (item.category) categorySet.add(item.category);
+  });
+  
+  // Insert each unique category into the categories table
+  let insertedCount = 0;
+  for (const categoryName of categorySet) {
+    const { error: insertError } = await supabase
+      .from('categories')
+      .upsert({
+        name: categoryName
+      }, {
+        onConflict: 'name'
+      });
+    
+    if (!insertError) {
+      insertedCount++;
+    }
+  }
+  
+  return { 
+    success: true, 
+    categoriesFound: categorySet.size, 
+    categoriesInserted: insertedCount 
+  };
 };
