@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,14 +34,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
   
   const isNewProduct = () => {
-    // Consider a product new if it was added within the last 30 days
-    if (product.created_at) {
-      const productDate = new Date(product.created_at);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return productDate > thirtyDaysAgo;
-    }
-    return false;
+    return false; // Default to not new
   };
   
   const getStockStatusText = () => {
