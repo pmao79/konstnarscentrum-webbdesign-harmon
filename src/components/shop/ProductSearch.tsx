@@ -1,20 +1,45 @@
 
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
+import { debounce } from "lodash";
 
 interface ProductSearchProps {
   searchQuery: string;
-  onSearch: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSearch: (query: string) => void;
+  placeholder?: string;
 }
 
-const ProductSearch = ({ searchQuery, onSearch }: ProductSearchProps) => {
+const ProductSearch = ({ searchQuery, onSearch, placeholder = "Sök produkter..." }: ProductSearchProps) => {
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  
+  // Debounce the search to avoid too many requests
+  const debouncedSearch = debounce((value) => {
+    onSearch(value);
+  }, 300);
+  
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
+  const handleSearchInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setLocalQuery(value);
+    debouncedSearch(value);
+  };
+
   return (
-    <div className="container mx-auto px-4 py-4">
+    <div className="relative w-full max-w-md mx-auto">
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
       <Input
         type="search"
-        placeholder="Sök produkter..."
-        value={searchQuery}
-        onChange={onSearch}
-        className="max-w-md"
+        placeholder={placeholder}
+        value={localQuery}
+        onChange={handleSearchInput}
+        className="pl-10 bg-background"
+        aria-label="Sök produkter"
       />
     </div>
   );
