@@ -1,3 +1,4 @@
+
 import { useToast } from "@/hooks/use-toast";
 import { processExcelFile } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
@@ -91,9 +92,11 @@ export const useProductImport = () => {
       
       setUploadProgress(70);
       const groupedProducts = groupProductsByMaster(mappedProducts);
+      console.log("Grouped products:", groupedProducts.length);
       
       for (const group of groupedProducts) {
         const { masterName, variants } = group;
+        console.log(`Processing group: ${masterName} with ${variants.length} variants`);
         const averagePrice = variants.reduce((sum: number, v: any) => sum + v.price, 0) / variants.length;
         
         try {
@@ -104,12 +107,15 @@ export const useProductImport = () => {
             'excel'
           );
           
+          console.log("Created master product:", masterProduct);
+          
           const { successCount: batchSuccess, failedCount: batchFailed } = 
             await saveProductVariants(variants, masterProduct.id, 'excel');
           
+          console.log(`Batch result: Success=${batchSuccess}, Failed=${batchFailed}`);
           successCount += batchSuccess;
           failedCount += batchFailed;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error processing product group:', error);
           failedCount += variants.length;
         }

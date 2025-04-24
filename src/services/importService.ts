@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { batchCategorizeProducts, categorizeProduct, getCategoryFromName, cleanSupplierName } from "@/utils/productCategorization";
 
@@ -7,24 +8,34 @@ export const saveMasterProduct = async (
   category?: string | null,
   source: string = 'manual'
 ) => {
-  const { data: masterProduct, error: masterError } = await supabase
-    .from('master_products')
-    .upsert({
-      name: masterName,
-      base_price: averagePrice,
-      category,
-      source
-    }, {
-      onConflict: 'name'
-    })
-    .select()
-    .single();
+  try {
+    const { data: masterProduct, error: masterError } = await supabase
+      .from('master_products')
+      .upsert({
+        name: masterName,
+        base_price: averagePrice,
+        category,
+        source
+      }, {
+        onConflict: 'name'
+      })
+      .select()
+      .single();
 
-  if (masterError) {
-    throw new Error('Error creating master product: ' + masterError.message);
+    if (masterError) {
+      console.error('Error creating master product:', masterError);
+      throw new Error('Error creating master product: ' + masterError.message);
+    }
+
+    if (!masterProduct) {
+      throw new Error('No master product returned after creation');
+    }
+
+    return masterProduct;
+  } catch (error: any) {
+    console.error('Exception in saveMasterProduct:', error);
+    throw error;
   }
-
-  return masterProduct;
 };
 
 export const saveProductVariants = async (
@@ -36,31 +47,45 @@ export const saveProductVariants = async (
   let successCount = 0;
   let failedCount = 0;
 
-  const categorizedVariants = batchCategorizeProducts(variants);
-  
-  for (let i = 0; i < categorizedVariants.length; i += BATCH_SIZE) {
-    const batch = categorizedVariants.slice(i, i + BATCH_SIZE).map(variant => ({
-      ...variant,
-      master_product_id: masterId,
-      source
-    }));
-    
-    const { error: variantError } = await supabase
-      .from('products')
-      .upsert(batch, {
-        onConflict: 'article_number',
-        ignoreDuplicates: false
-      });
-    
-    if (variantError) {
-      console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, variantError);
-      failedCount += batch.length;
-    } else {
-      successCount += batch.length;
+  try {
+    if (!variants || variants.length === 0) {
+      return { successCount: 0, failedCount: 0 };
     }
-  }
 
-  return { successCount, failedCount };
+    console.log(`Processing ${variants.length} variants for master ID: ${masterId}`);
+    const categorizedVariants = batchCategorizeProducts(variants);
+    
+    for (let i = 0; i < categorizedVariants.length; i += BATCH_SIZE) {
+      const batch = categorizedVariants.slice(i, i + BATCH_SIZE).map(variant => ({
+        ...variant,
+        master_product_id: masterId,
+        source
+      }));
+      
+      console.log(`Saving batch ${i/BATCH_SIZE + 1} with ${batch.length} variants`);
+      const { data, error: variantError } = await supabase
+        .from('products')
+        .upsert(batch, {
+          onConflict: 'article_number',
+          ignoreDuplicates: false
+        })
+        .select();
+      
+      if (variantError) {
+        console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, variantError);
+        failedCount += batch.length;
+      } else {
+        console.log(`Successfully saved ${data?.length || 0} products in batch`);
+        successCount += batch.length;
+      }
+    }
+
+    return { successCount, failedCount };
+  } catch (error: any) {
+    console.error('Exception in saveProductVariants:', error);
+    failedCount += variants.length;
+    return { successCount, failedCount };
+  }
 };
 
 export const saveImportLog = async (logData: {
@@ -69,18 +94,22 @@ export const saveImportLog = async (logData: {
   failedCount: number;
   supplier?: string | null;
 }) => {
-  const { error } = await supabase
-    .from('import_logs')
-    .insert({
-      file_name: logData.fileName,
-      products_added: logData.successCount,
-      products_updated: 0,
-      import_status: 'completed',
-      supplier: logData.supplier
-    });
+  try {
+    const { error } = await supabase
+      .from('import_logs')
+      .insert({
+        file_name: logData.fileName,
+        products_added: logData.successCount,
+        products_updated: 0,
+        import_status: 'completed',
+        supplier: logData.supplier
+      });
 
-  if (error) {
-    console.error('Error saving import log:', error);
+    if (error) {
+      console.error('Error saving import log:', error);
+    }
+  } catch (error) {
+    console.error('Exception saving import log:', error);
   }
 };
 
@@ -93,6 +122,7 @@ export const cleanExcelImportedProducts = async () => {
       .eq('source', 'excel');
 
     if (productsError) {
+      console.error('Error deleting Excel products:', productsError);
       return { 
         success: false, 
         message: 'Error deleting Excel products: ' + productsError.message 
@@ -106,6 +136,7 @@ export const cleanExcelImportedProducts = async () => {
       .eq('source', 'excel');
 
     if (masterError) {
+      console.error('Error deleting Excel master products:', masterError);
       return { 
         success: false, 
         message: 'Error deleting Excel master products: ' + masterError.message 
@@ -117,6 +148,7 @@ export const cleanExcelImportedProducts = async () => {
       message: 'All Excel-imported products successfully deleted' 
     };
   } catch (error: any) {
+    console.error('Exception during product cleanup:', error);
     return { 
       success: false, 
       message: 'Exception during product cleanup: ' + error.message 
@@ -135,6 +167,7 @@ export const categorizeExistingProducts = async () => {
       .select('*');
       
     if (error) {
+      console.error('Error fetching products:', error);
       throw new Error('Error fetching products: ' + error.message);
     }
     
