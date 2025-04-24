@@ -7,9 +7,17 @@ import {
   Settings, 
   Users, 
   FileSpreadsheet,
-  BarChart 
+  BarChart,
+  Menu 
 } from "lucide-react";
 import { Link } from 'react-router-dom';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarTrigger
+} from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 
 const AdminSidebar = () => {
   const menuItems = [
@@ -23,26 +31,37 @@ const AdminSidebar = () => {
   ];
 
   return (
-    <aside className="w-60 bg-background border-r h-full">
-      <div className="p-4 border-b">
-        <h2 className="font-medium text-xl">Admin</h2>
-      </div>
-      <nav className="p-2">
-        <ul className="space-y-1">
-          {menuItems.map((item) => (
-            <li key={item.path}>
-              <Link 
-                to={item.path} 
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors"
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </aside>
+    <Sidebar>
+      <SidebarHeader className="p-0">
+        <div className="h-16 border-b bg-background px-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <SidebarTrigger>
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SidebarTrigger>
+            <span className="text-lg font-medium">SKC Admin</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <nav className="p-2">
+          <ul className="space-y-1">
+            {menuItems.map((item) => (
+              <li key={item.path}>
+                <Link 
+                  to={item.path} 
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors"
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </SidebarContent>
+    </Sidebar>
   );
 };
 

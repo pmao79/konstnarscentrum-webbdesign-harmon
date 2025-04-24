@@ -2,17 +2,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarTrigger,
   SidebarInset
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Menu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ProductImporter from '@/components/admin/ProductImporter';
 import ImportHistory from '@/components/admin/ImportHistory';
+import AdminSidebar from '@/components/admin/AdminSidebar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ProductStats {
   totalCount: number;
@@ -65,43 +61,7 @@ const Dashboard = () => {
     <SidebarProvider defaultOpen>
       <div className="flex min-h-screen bg-muted/10">
         {/* Admin Sidebar */}
-        <Sidebar>
-          <SidebarContent className="p-0">
-            <div className="h-16 border-b bg-background px-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SidebarTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SidebarTrigger>
-                <span className="text-lg font-medium">SKC Admin</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto">
-              <div className="space-y-2 p-2">
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/admin">Dashboard</a>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/admin/products">Produkter</a>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/admin/orders">Ordrar</a>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/admin/customers">Kunder</a>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/admin/settings">Inställningar</a>
-                </Button>
-                <Button variant="ghost" className="w-full justify-start" asChild>
-                  <a href="/">Tillbaka till butiken</a>
-                </Button>
-              </div>
-            </div>
-          </SidebarContent>
-        </Sidebar>
+        <AdminSidebar />
         
         {/* Main Content */}
         <SidebarInset>
