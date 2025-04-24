@@ -1,9 +1,11 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
-import { Input } from '@/components/ui/input';
 import ProductFilters from '@/components/ProductFilters';
-import ProductCard from '@/components/ProductCard';
+import ProductsHero from '@/components/shop/ProductsHero';
+import ProductSearch from '@/components/shop/ProductSearch';
+import ProductSort from '@/components/shop/ProductSort';
+import ProductGrid from '@/components/shop/ProductGrid';
 import { useProducts, FilterOptions } from '@/hooks/useProducts';
 
 const categories = [
@@ -35,29 +37,11 @@ const Products = () => {
 
   return (
     <Layout>
-      {/* Hero Banner */}
-      <div className="bg-art-sky py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-serif font-medium mb-4">Utforska Vårt Sortiment</h1>
-          <p className="text-lg max-w-xl">Upptäck vårt breda urval av konstnärsmaterial för alla tekniker och stilar.</p>
-        </div>
-      </div>
+      <ProductsHero />
+      <ProductSearch searchQuery={searchQuery} onSearch={handleSearch} />
       
-      {/* Search Bar */}
-      <div className="container mx-auto px-4 py-4">
-        <Input
-          type="search"
-          placeholder="Sök produkter..."
-          value={searchQuery}
-          onChange={handleSearch}
-          className="max-w-md"
-        />
-      </div>
-      
-      {/* Product Listing */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Filters Sidebar */}
           <div className="lg:w-1/4">
             <ProductFilters
               filters={filters}
@@ -67,44 +51,20 @@ const Products = () => {
             />
           </div>
           
-          {/* Product Grid */}
           <div className="lg:w-3/4">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <span className="text-muted-foreground">
-                  {isLoading ? 'Laddar...' : 
-                   error ? 'Ett fel uppstod' :
-                   `Visar ${products?.length || 0} produkter`}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <label htmlFor="sort" className="text-sm mr-2">Sortera:</label>
-                <select 
-                  id="sort"
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="text-sm border border-art-sand rounded px-2 py-1"
-                >
-                  <option value="relevans">Relevans</option>
-                  <option value="lagstPris">Lägst pris</option>
-                  <option value="hogstPris">Högst pris</option>
-                  <option value="nyast">Nyast</option>
-                  <option value="popularitet">Popularitet</option>
-                </select>
-              </div>
-            </div>
+            <ProductSort
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              totalProducts={products?.length}
+              isLoading={isLoading}
+              error={error}
+            />
             
-            {isLoading ? (
-              <div>Laddar produkter...</div>
-            ) : error ? (
-              <div>Ett fel uppstod när produkterna skulle laddas.</div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {products?.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
-            )}
+            <ProductGrid
+              products={products}
+              isLoading={isLoading}
+              error={error}
+            />
           </div>
         </div>
       </div>
