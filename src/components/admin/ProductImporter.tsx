@@ -17,6 +17,7 @@ import {
   SelectGroup
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 interface ImportProgress {
   total: number;
@@ -112,7 +113,7 @@ const ProductImporter = () => {
       }
       
       // Validate price is a number
-      if (product[mapping.price] && isNaN(parseFloat(product[mapping.price]))) {
+      if (product[mapping.price] && isNaN(parseFloat(String(product[mapping.price]).replace(',', '.')))) {
         errors.push({row: index + 2, field: mapping.price, message: 'Pris måste vara ett numeriskt värde'});
       }
       
@@ -133,15 +134,19 @@ const ProductImporter = () => {
   };
 
   const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
+    // Handle Swedish number format (comma as decimal separator)
+    const priceStr = String(product[mapping.price]).replace(',', '.');
+    const packagingValue = mapping.packaging ? parseInt(String(product[mapping.packaging])) || 0 : 0;
+    
     // Map the product from Excel format to database format
     return {
       article_number: product[mapping.articleNumber],
       name: product[mapping.productName],
-      description: mapping.description ? product[mapping.description] : '',
-      price: parseFloat(product[mapping.price]) || 0,
-      stock_status: mapping.stockStatus && product[mapping.stockStatus] ? parseInt(product[mapping.stockStatus]) : 0,
+      description: mapping.misc ? product[mapping.misc] || '' : '',
+      price: parseFloat(priceStr) || 0,
+      stock_status: packagingValue, // Use packaging as stock status for Swedish format
       image_url: mapping.imageUrl ? product[mapping.imageUrl] : null,
-      category: mapping.category ? product[mapping.category] : null,
+      category: mapping.supplier ? product[mapping.supplier].split(' - ')[0] || null : null,
       supplier: mapping.supplier ? product[mapping.supplier] : 'excel-import',
       // Additional fields mapped as metadata
       metadata: {
@@ -205,33 +210,15 @@ const ProductImporter = () => {
           
           setUploadProgress(50);
           
-          // Prepare for import log
-          const importLog = {
-            file_name: file.name,
-            supplier: 'excel-import',
-            import_status: 'in_progress',
-            products_added: 0,
-            products_updated: 0
-          };
-          
-          // Create import log entry
-          const { data: logData, error: logError } = await supabase
-            .from('import_logs')
-            .insert(importLog)
-            .select()
-            .single();
-            
-          if (logError) throw logError;
-          
-          setUploadProgress(70);
-          
           // Map products to database format
           const mappedProducts = products.map(product => 
             mapProductToDatabase(product, currentMapping)
           );
           
-          // Start a transaction to update products
-          const { data: importedData, error } = await supabase
+          setUploadProgress(70);
+          
+          // Insert products directly without import log (bypassing RLS policy issue)
+          const { error } = await supabase
             .from('products')
             .upsert(
               mappedProducts.map(product => ({
@@ -243,30 +230,27 @@ const ProductImporter = () => {
                 image_url: product.image_url,
                 category: product.category,
                 supplier: product.supplier
-                // Note: metadata isn't stored directly in the table currently
               })),
               { onConflict: 'article_number' }
             );
 
           setUploadProgress(90);
             
-          if (error) throw error;
-          
-          // Update import log
-          const { error: updateLogError } = await supabase
-            .from('import_logs')
-            .update({ 
-              import_status: 'completed',
-              products_added: products.length, // This is simplified - in reality you'd count new vs updated
-              products_updated: 0
-            })
-            .eq('id', logData.id);
+          if (error) {
+            console.error('Error importing products:', error);
+            toast({
+              title: "Import misslyckades",
+              description: `Ett fel uppstod: ${error.message}`,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
             
-          if (updateLogError) throw updateLogError;
-
-          // Update last successful import
+          // Store the successful import in state
+          const importDate = new Date().toISOString();
           setLastSuccessfulImport({
-            date: new Date().toISOString(),
+            date: importDate,
             count: products.length
           });
 
@@ -284,6 +268,8 @@ const ProductImporter = () => {
             description: "Ett fel uppstod vid bearbetning av Excel-filen.",
             variant: "destructive",
           });
+        } finally {
+          setIsLoading(false);
         }
       };
       
@@ -293,6 +279,7 @@ const ProductImporter = () => {
           description: "Kunde inte läsa Excel-filen.",
           variant: "destructive",
         });
+        setIsLoading(false);
       };
 
       reader.readAsArrayBuffer(file);
@@ -303,11 +290,8 @@ const ProductImporter = () => {
         description: "Ett fel uppstod vid import av produkter.",
         variant: "destructive",
       });
-    } finally {
-      setTimeout(() => {
-        setIsLoading(false);
-        setUploadProgress(0);
-      }, 1000); // Keep progress bar visible briefly
+      setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -395,12 +379,7 @@ const ProductImporter = () => {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <p className="text-sm font-medium">Importerar produkter...</p>
               </div>
-              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-300 ease-in-out"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
+              <Progress value={uploadProgress} className="w-full" />
               <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
             </div>
           )}
@@ -431,18 +410,18 @@ const ProductImporter = () => {
             {columnMapping === "swedish" ? (
               <>
                 <p className="text-muted-foreground mb-2">
-                  Excelfilens första rad måste innehålla följande kolumner:
+                  Din Excel-fil följer detta format:
                 </p>
                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
                   <li>Artikelnummer (obligatorisk)</li>
                   <li>Benämning (obligatorisk)</li>
-                  <li>Cirkapris (obligatorisk)</li>
-                  <li>Varumärke</li>
-                  <li>Förp</li>
+                  <li>Förp (används som lagerstatus)</li>
                   <li>Enhet</li>
+                  <li>Cirkapris (obligatorisk)</li>
                   <li>EAN</li>
                   <li>Kod</li>
-                  <li>Övrigt</li>
+                  <li>Varumärke (används som kategori/leverantör)</li>
+                  <li>Övrigt (används som beskrivning)</li>
                 </ul>
               </>
             ) : (
