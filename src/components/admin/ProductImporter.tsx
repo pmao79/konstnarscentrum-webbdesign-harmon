@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -58,14 +57,14 @@ const COLUMN_MAPPINGS = {
     supplier: "Varumärke"
   },
   english: {
-    articleNumber: "Artikelnummer",
-    productName: "Produktnamn",
-    description: "Beskrivning",
-    price: "Pris (SEK)",
-    stockStatus: "Lagerstatus",
-    imageUrl: "Bild-URL",
-    category: "Kategori",
-    supplier: "Leverantör"
+    articleNumber: "Article Number",
+    productName: "Product Name",
+    description: "Description",
+    price: "Price",
+    stockStatus: "Stock Status",
+    imageUrl: "Image URL",
+    category: "Category",
+    supplier: "Supplier"
   }
 } as const;
 
@@ -113,6 +112,11 @@ const ProductImporter = () => {
     const errors: Array<{row: number; field: string; message: string}> = [];
     
     products.forEach((product, index) => {
+      // Skip empty rows that sometimes appear in Excel exports
+      if (!product || Object.keys(product).length === 0) {
+        return;
+      }
+      
       // Check required fields
       if (!product[mapping.articleNumber]) {
         errors.push({row: index + 2, field: mapping.articleNumber, message: 'Artikelnummer måste anges'});
@@ -122,14 +126,21 @@ const ProductImporter = () => {
         errors.push({row: index + 2, field: mapping.productName, message: 'Produktnamn måste anges'});
       }
       
-      // Validate price is a number
-      if (product[mapping.price] && isNaN(parseFloat(String(product[mapping.price]).replace(',', '.')))) {
-        errors.push({row: index + 2, field: mapping.price, message: 'Pris måste vara ett numeriskt värde'});
+      // Validate price is a number (allowing for Swedish format with comma)
+      const priceValue = product[mapping.price];
+      if (priceValue !== 0 && !priceValue) {
+        errors.push({row: index + 2, field: mapping.price, message: 'Pris måste anges'});
+      } else {
+        const priceStr = String(priceValue).replace(',', '.');
+        if (isNaN(parseFloat(priceStr))) {
+          errors.push({row: index + 2, field: mapping.price, message: 'Pris måste vara ett numeriskt värde'});
+        }
       }
       
-      // Validate stock status is a number if it exists
+      // Validate packaging/stock is a number if it exists
       const packagingField = mapping.packaging;
-      if (packagingField && product[packagingField] && isNaN(parseInt(String(product[packagingField])))) {
+      if (packagingField && product[packagingField] && 
+          isNaN(parseInt(String(product[packagingField]).replace(/\s/g, '')))) {
         errors.push({row: index + 2, field: packagingField, message: 'Förpackning måste vara ett heltal'});
       }
     });
@@ -137,32 +148,75 @@ const ProductImporter = () => {
     return errors;
   };
 
-  const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
-    console.log("Mapping product:", product); // Debug log
+  const cleanNumericValue = (value: any): number => {
+    if (value === undefined || value === null) return 0;
     
-    // Handle Swedish number format (comma as decimal separator)
-    let priceStr = String(product[mapping.price] || "0").replace(',', '.');
+    // Convert to string, handle any format
+    let strValue = String(value);
+    
+    // Replace comma with dot for decimal
+    strValue = strValue.replace(',', '.');
+    
     // Remove any non-numeric chars except decimal points
-    priceStr = priceStr.replace(/[^\d.]/g, '');
+    strValue = strValue.replace(/[^\d.]/g, '');
     
+    // Parse as float and handle NaN
+    const numValue = parseFloat(strValue);
+    return isNaN(numValue) ? 0 : numValue;
+  };
+
+  const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
+    // Skip empty rows
+    if (!product || Object.keys(product).length === 0) {
+      return null;
+    }
+    
+    if (!product[mapping.articleNumber] || !product[mapping.productName]) {
+      console.warn("Skipping product without required fields:", product);
+      return null;
+    }
+    
+    // Handle price (clean and convert to number)
+    const price = cleanNumericValue(product[mapping.price]);
+    
+    // Handle packaging/stock value (convert to integer)
     const packagingValue = mapping.packaging && product[mapping.packaging] 
-      ? parseInt(String(product[mapping.packaging])) || 0 
+      ? parseInt(String(product[mapping.packaging]).replace(/\s/g, '')) || 0 
       : 0;
     
-    // Extract category from supplier/brand if applicable
-    const brandParts = product[mapping.supplier]?.split(' - ') || [];
-    const category = brandParts.length > 0 ? brandParts[0] : null;
+    // Extract category and supplier
+    let category = null;
+    let supplier = product[mapping.supplier] || null;
+    
+    // For Swedish format, try to extract category from Varumärke if it contains a hyphen
+    if (columnMapping === "swedish" && supplier) {
+      const brandParts = String(supplier).split(' - ');
+      if (brandParts.length > 1) {
+        category = brandParts[0].trim();
+        // Keep the full brand as supplier
+      }
+    } else if (mapping.category) {
+      category = product[mapping.category] || null;
+    }
+    
+    // Description handling - use misc field in Swedish format
+    const description = mapping.misc ? product[mapping.misc] || '' 
+                      : mapping.description ? product[mapping.description] || ''
+                      : '';
+                      
+    // Image URL handling
+    const imageUrl = mapping.imageUrl ? product[mapping.imageUrl] : null;
     
     // Map the product from Excel format to database format
     return {
-      article_number: product[mapping.articleNumber],
-      name: product[mapping.productName],
-      description: mapping.misc ? product[mapping.misc] || '' : '',
-      price: parseFloat(priceStr) || 0,
-      stock_status: packagingValue, // Use packaging as stock status for Swedish format
-      image_url: mapping.imageUrl ? product[mapping.imageUrl] : null,
+      article_number: String(product[mapping.articleNumber]),
+      name: String(product[mapping.productName]),
+      description: description,
+      price: price,
+      stock_status: packagingValue,
+      image_url: imageUrl,
       category: category,
-      supplier: product[mapping.supplier] || 'excel-import'
+      supplier: supplier
     };
   };
 
@@ -181,7 +235,12 @@ const ProductImporter = () => {
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const products = XLSX.utils.sheet_to_json(firstSheet);
+          
+          // Convert Excel data to JSON with better options for handling different formats
+          const products = XLSX.utils.sheet_to_json(firstSheet, {
+            defval: null, // Use null for empty cells
+            raw: true     // Keep raw values
+          });
           
           setUploadProgress(40);
           
@@ -189,9 +248,25 @@ const ProductImporter = () => {
             throw new Error("Inga produkter hittades i filen");
           }
 
-          console.log("First product from Excel:", products[0]); // Debug log
+          console.log("Total products found:", products.length);
+          console.log("First product from Excel:", products[0]);
           
           const currentMapping = COLUMN_MAPPINGS[columnMapping];
+          
+          // Check if the expected columns exist
+          let firstProduct = products[0];
+          let missingColumns = [];
+          
+          if (!firstProduct[currentMapping.articleNumber]) 
+            missingColumns.push(currentMapping.articleNumber);
+          if (!firstProduct[currentMapping.productName]) 
+            missingColumns.push(currentMapping.productName);
+          if (!firstProduct[currentMapping.price]) 
+            missingColumns.push(currentMapping.price);
+            
+          if (missingColumns.length > 0) {
+            throw new Error(`Saknade kolumner i Excel-filen: ${missingColumns.join(", ")}. Kontrollera formatet och kolumnnamnen.`);
+          }
           
           // Validate products
           const validationErrors = validateProducts(products, currentMapping);
@@ -220,73 +295,115 @@ const ProductImporter = () => {
           
           setUploadProgress(50);
           
-          // Map products to database format
-          const mappedProducts = products.map(product => 
-            mapProductToDatabase(product, currentMapping)
-          );
+          // Map products to database format and filter out null values (invalid products)
+          const mappedProducts = products
+            .map(product => mapProductToDatabase(product, currentMapping))
+            .filter(Boolean); // Remove null entries
+          
+          console.log(`Efter mappning: ${mappedProducts.length} giltiga produkter`);
+          
+          if (mappedProducts.length === 0) {
+            throw new Error("Inga giltiga produkter att importera efter validering");
+          }
           
           setUploadProgress(70);
           
-          console.log("First mapped product:", mappedProducts[0]); // Debug log
+          console.log("First mapped product:", mappedProducts[0]);
           
-          // Insert products directly
-          const { error } = await supabase
-            .from('products')
-            .upsert(
-              mappedProducts,
-              { onConflict: 'article_number' }
-            );
-
-          setUploadProgress(90);
+          try {
+            // Process products in smaller batches to avoid potential payload size issues
+            const BATCH_SIZE = 50;
+            let successCount = 0;
+            let failedCount = 0;
             
-          if (error) {
-            console.error('Error importing products:', error);
-            setErrorMessage(`Ett fel uppstod: ${error.message}`);
+            for (let i = 0; i < mappedProducts.length; i += BATCH_SIZE) {
+              const batch = mappedProducts.slice(i, i + BATCH_SIZE);
+              
+              try {
+                const { data, error } = await supabase
+                  .from('products')
+                  .upsert(batch, { 
+                    onConflict: 'article_number',
+                    ignoreDuplicates: false
+                  });
+
+                if (error) {
+                  console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, error);
+                  failedCount += batch.length;
+                  throw error;
+                } else {
+                  successCount += batch.length;
+                  console.log(`Batch ${i/BATCH_SIZE + 1} imported successfully (${batch.length} products)`);
+                }
+              } catch (batchError) {
+                console.error(`Failed to process batch ${i/BATCH_SIZE + 1}:`, batchError);
+                // Continue with next batch despite errors
+              }
+              
+              // Update progress
+              setUploadProgress(70 + Math.round(20 * ((i + BATCH_SIZE) / mappedProducts.length)));
+            }
+
+            // Verify results
+            if (successCount === 0) {
+              throw new Error("Ingen produkt kunde importeras. Kontrollera dina behörigheter och försök igen.");
+            }
+            
+            // Create import log entry
+            const { error: logError } = await supabase
+              .from('import_logs')
+              .insert([{
+                file_name: file.name,
+                import_status: failedCount > 0 ? 'partial' : 'completed',
+                products_added: successCount,
+                products_updated: 0,
+                supplier: mappedProducts[0]?.supplier || 'excel-import',
+                error_message: failedCount > 0 ? `${failedCount} produkter kunde inte importeras` : null
+              }]);
+              
+            if (logError) {
+              console.error('Error creating import log:', logError);
+            }
+              
+            // Store the successful import in state
+            const importDate = new Date().toISOString();
+            setLastSuccessfulImport({
+              date: importDate,
+              count: successCount
+            });
+
+            setUploadProgress(100);
+            setSelectedFile(null);
+            setErrorMessage(null);
+            
+            if (failedCount > 0) {
+              toast({
+                title: "Import delvis slutförd",
+                description: `${successCount} produkter har importerats framgångsrikt. ${failedCount} produkter kunde inte importeras.`,
+                variant: "warning",
+              });
+            } else {
+              toast({
+                title: "Import slutförd",
+                description: `${successCount} produkter har importerats/uppdaterats.`,
+              });
+            }
+          } catch (dbError: any) {
+            console.error('Database error during import:', dbError);
+            setErrorMessage(`Databasfel: ${dbError.message || 'Okänt fel vid import'}`);
+            
             toast({
               title: "Import misslyckades",
-              description: `Ett fel uppstod: ${error.message}`,
+              description: `Ett databasfel uppstod: ${dbError.message || 'Okänt fel'}`,
               variant: "destructive",
             });
-            setIsLoading(false);
-            return;
           }
-
-          // Create import log entry
-          const { error: logError } = await supabase
-            .from('import_logs')
-            .insert([{
-              file_name: file.name,
-              import_status: 'completed',
-              products_added: products.length,
-              products_updated: 0,
-              supplier: mappedProducts[0].supplier
-            }]);
-            
-          if (logError) {
-            console.error('Error creating import log:', logError);
-          }
-            
-          // Store the successful import in state
-          const importDate = new Date().toISOString();
-          setLastSuccessfulImport({
-            date: importDate,
-            count: products.length
-          });
-
-          setUploadProgress(100);
-          setSelectedFile(null);
-          setErrorMessage(null);
-          
-          toast({
-            title: "Import slutförd",
-            description: `${products.length} produkter har importerats/uppdaterats.`,
-          });
         } catch (error: any) {
           console.error('Error processing Excel file:', error);
           setErrorMessage(`Bearbetningsfel: ${error.message}`);
           toast({
             title: "Bearbetningsfel",
-            description: "Ett fel uppstod vid bearbetning av Excel-filen.",
+            description: error.message || "Ett fel uppstod vid bearbetning av Excel-filen.",
             variant: "destructive",
           });
         } finally {
@@ -464,14 +581,14 @@ const ProductImporter = () => {
                   Excelfilens första rad måste innehålla följande kolumner:
                 </p>
                 <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                  <li>Artikelnummer (obligatorisk)</li>
-                  <li>Produktnamn (obligatorisk)</li>
-                  <li>Beskrivning</li>
-                  <li>Pris (SEK) (obligatorisk)</li>
-                  <li>Lagerstatus</li>
-                  <li>Kategori</li>
-                  <li>Bild-URL</li>
-                  <li>Leverantör</li>
+                  <li>Article Number (obligatorisk)</li>
+                  <li>Product Name (obligatorisk)</li>
+                  <li>Description</li>
+                  <li>Price (obligatorisk)</li>
+                  <li>Stock Status</li>
+                  <li>Category</li>
+                  <li>Image URL</li>
+                  <li>Supplier</li>
                 </ul>
               </>
             )}
