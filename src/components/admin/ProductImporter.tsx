@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
-import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { sv } from 'date-fns/locale';
@@ -50,12 +50,12 @@ const COLUMN_MAPPINGS = {
     articleNumber: "Artikelnummer",
     productName: "Benämning",
     price: "Cirkapris",
-    supplier: "Varumärke",
     packaging: "Förp",
     unit: "Enhet",
     ean: "EAN",
     code: "Kod",
-    misc: "Övrigt"
+    misc: "Övrigt",
+    supplier: "Varumärke"
   },
   english: {
     articleNumber: "Artikelnummer",
@@ -77,22 +77,32 @@ const ProductImporter = () => {
   const [lastSuccessfulImport, setLastSuccessfulImport] = useState<{date: string, count: number} | null>(null);
   const [columnMapping, setColumnMapping] = useState<"swedish" | "english">("swedish");
   const { toast } = useToast();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Fetch the most recent successful import
     const getLastImport = async () => {
-      const { data, error } = await supabase
-        .from('import_logs')
-        .select('created_at, products_added')
-        .eq('import_status', 'completed')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      try {
+        const { data, error } = await supabase
+          .from('import_logs')
+          .select('created_at, products_added')
+          .eq('import_status', 'completed')
+          .order('created_at', { ascending: false })
+          .limit(1);
 
-      if (!error && data && data.length > 0) {
-        setLastSuccessfulImport({
-          date: data[0].created_at,
-          count: data[0].products_added
-        });
+        if (error) {
+          console.error('Error fetching import logs:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setLastSuccessfulImport({
+            date: data[0].created_at,
+            count: data[0].products_added
+          });
+        }
+      } catch (err) {
+        console.error('Exception fetching import logs:', err);
       }
     };
     
@@ -118,15 +128,9 @@ const ProductImporter = () => {
       }
       
       // Validate stock status is a number if it exists
-      const stockStatusField = mapping.stockStatus;
-      if (stockStatusField && product[stockStatusField] && isNaN(parseInt(product[stockStatusField]))) {
-        errors.push({row: index + 2, field: stockStatusField, message: 'Lagerstatus måste vara ett heltal'});
-      }
-      
-      // Validate image URL format if it exists
-      const imageUrlField = mapping.imageUrl;
-      if (imageUrlField && product[imageUrlField] && !product[imageUrlField].startsWith('http')) {
-        errors.push({row: index + 2, field: imageUrlField, message: 'Bild-URL måste vara en giltig URL'});
+      const packagingField = mapping.packaging;
+      if (packagingField && product[packagingField] && isNaN(parseInt(String(product[packagingField])))) {
+        errors.push({row: index + 2, field: packagingField, message: 'Förpackning måste vara ett heltal'});
       }
     });
     
@@ -134,9 +138,20 @@ const ProductImporter = () => {
   };
 
   const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
+    console.log("Mapping product:", product); // Debug log
+    
     // Handle Swedish number format (comma as decimal separator)
-    const priceStr = String(product[mapping.price]).replace(',', '.');
-    const packagingValue = mapping.packaging ? parseInt(String(product[mapping.packaging])) || 0 : 0;
+    let priceStr = String(product[mapping.price] || "0").replace(',', '.');
+    // Remove any non-numeric chars except decimal points
+    priceStr = priceStr.replace(/[^\d.]/g, '');
+    
+    const packagingValue = mapping.packaging && product[mapping.packaging] 
+      ? parseInt(String(product[mapping.packaging])) || 0 
+      : 0;
+    
+    // Extract category from supplier/brand if applicable
+    const brandParts = product[mapping.supplier]?.split(' - ') || [];
+    const category = brandParts.length > 0 ? brandParts[0] : null;
     
     // Map the product from Excel format to database format
     return {
@@ -146,16 +161,8 @@ const ProductImporter = () => {
       price: parseFloat(priceStr) || 0,
       stock_status: packagingValue, // Use packaging as stock status for Swedish format
       image_url: mapping.imageUrl ? product[mapping.imageUrl] : null,
-      category: mapping.supplier ? product[mapping.supplier].split(' - ')[0] || null : null,
-      supplier: mapping.supplier ? product[mapping.supplier] : 'excel-import',
-      // Additional fields mapped as metadata
-      metadata: {
-        packaging: mapping.packaging ? product[mapping.packaging] : null,
-        unit: mapping.unit ? product[mapping.unit] : null,
-        ean: mapping.ean ? product[mapping.ean] : null,
-        code: mapping.code ? product[mapping.code] : null,
-        misc: mapping.misc ? product[mapping.misc] : null
-      }
+      category: category,
+      supplier: product[mapping.supplier] || 'excel-import'
     };
   };
 
@@ -164,6 +171,7 @@ const ProductImporter = () => {
       setIsLoading(true);
       setUploadProgress(10);
       setImportProgress(null);
+      setErrorMessage(null);
       
       const reader = new FileReader();
       
@@ -180,6 +188,8 @@ const ProductImporter = () => {
           if (!products || products.length === 0) {
             throw new Error("Inga produkter hittades i filen");
           }
+
+          console.log("First product from Excel:", products[0]); // Debug log
           
           const currentMapping = COLUMN_MAPPINGS[columnMapping];
           
@@ -206,7 +216,7 @@ const ProductImporter = () => {
             return;
           }
           
-          console.log(`Processar ${products.length} produkter från Excel`, products[0]);
+          console.log(`Processar ${products.length} produkter från Excel`);
           
           setUploadProgress(50);
           
@@ -217,20 +227,13 @@ const ProductImporter = () => {
           
           setUploadProgress(70);
           
-          // Insert products directly without import log (bypassing RLS policy issue)
+          console.log("First mapped product:", mappedProducts[0]); // Debug log
+          
+          // Insert products directly
           const { error } = await supabase
             .from('products')
             .upsert(
-              mappedProducts.map(product => ({
-                article_number: product.article_number,
-                name: product.name,
-                description: product.description,
-                price: product.price,
-                stock_status: product.stock_status,
-                image_url: product.image_url,
-                category: product.category,
-                supplier: product.supplier
-              })),
+              mappedProducts,
               { onConflict: 'article_number' }
             );
 
@@ -238,6 +241,7 @@ const ProductImporter = () => {
             
           if (error) {
             console.error('Error importing products:', error);
+            setErrorMessage(`Ett fel uppstod: ${error.message}`);
             toast({
               title: "Import misslyckades",
               description: `Ett fel uppstod: ${error.message}`,
@@ -245,6 +249,21 @@ const ProductImporter = () => {
             });
             setIsLoading(false);
             return;
+          }
+
+          // Create import log entry
+          const { error: logError } = await supabase
+            .from('import_logs')
+            .insert([{
+              file_name: file.name,
+              import_status: 'completed',
+              products_added: products.length,
+              products_updated: 0,
+              supplier: mappedProducts[0].supplier
+            }]);
+            
+          if (logError) {
+            console.error('Error creating import log:', logError);
           }
             
           // Store the successful import in state
@@ -256,13 +275,15 @@ const ProductImporter = () => {
 
           setUploadProgress(100);
           setSelectedFile(null);
+          setErrorMessage(null);
           
           toast({
             title: "Import slutförd",
             description: `${products.length} produkter har importerats/uppdaterats.`,
           });
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error processing Excel file:', error);
+          setErrorMessage(`Bearbetningsfel: ${error.message}`);
           toast({
             title: "Bearbetningsfel",
             description: "Ett fel uppstod vid bearbetning av Excel-filen.",
@@ -274,6 +295,7 @@ const ProductImporter = () => {
       };
       
       reader.onerror = () => {
+        setErrorMessage("Kunde inte läsa Excel-filen.");
         toast({
           title: "Läsfel",
           description: "Kunde inte läsa Excel-filen.",
@@ -283,8 +305,9 @@ const ProductImporter = () => {
       };
 
       reader.readAsArrayBuffer(file);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Import error:', error);
+      setErrorMessage(`Import misslyckades: ${error.message}`);
       toast({
         title: "Import misslyckades",
         description: "Ett fel uppstod vid import av produkter.",
@@ -299,6 +322,7 @@ const ProductImporter = () => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      setErrorMessage(null);
       
       // Reset any previous validation errors
       setImportProgress(null);
@@ -381,6 +405,16 @@ const ProductImporter = () => {
               </div>
               <Progress value={uploadProgress} className="w-full" />
               <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
+            </div>
+          )}
+          
+          {errorMessage && (
+            <div className="mt-4 border rounded-md p-4 bg-destructive/10">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <h3 className="font-medium">Felmeddelande</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">{errorMessage}</p>
             </div>
           )}
           
