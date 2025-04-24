@@ -1,19 +1,28 @@
 
-import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { processExcelFile, validateProducts } from '@/utils/excelProcessing';
+import { processExcelFile } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
-import type { ImportProgress, ColumnMappingType } from '@/types/importing';
+import { validateProducts } from '@/utils/importValidation';
+import { mapProductData } from '@/utils/productMapping';
+import { saveImportLog, saveMasterProduct, saveProductVariants } from '@/services/importService';
+import { useImportProgress } from '@/hooks/useImportProgress';
+import type { ColumnMappingType } from '@/types/importing';
 import { COLUMN_MAPPINGS } from '@/types/importing';
 
 export const useProductImport = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
+  const {
+    isLoading,
+    setIsLoading,
+    uploadProgress,
+    setUploadProgress,
+    selectedFile,
+    setSelectedFile,
+    importProgress,
+    setImportProgress,
+    errorMessage,
+    setErrorMessage
+  } = useImportProgress();
 
   const handleImport = async (file: File, columnMapping: keyof ColumnMappingType) => {
     let successCount = 0;
@@ -73,47 +82,9 @@ export const useProductImport = () => {
       
       setUploadProgress(50);
       
-      const mappedProducts = products.map(product => {
-        if (!product || Object.keys(product).length === 0) return null;
-        
-        const price = Number(String(product[currentMapping.price]).replace(',', '.'));
-        let stockStatus = 0;
-        let category = null;
-        let supplier = product[currentMapping.supplier] || null;
-        let description = '';
-        let imageUrl = null;
-        
-        // Handle mapping specific fields
-        if (columnMapping === "swedish") {
-          const swedishMapping = currentMapping as typeof COLUMN_MAPPINGS['swedish'];
-          stockStatus = product[swedishMapping.packaging] 
-            ? parseInt(String(product[swedishMapping.packaging]).replace(/\s/g, '')) || 0 
-            : 0;
-          description = product[swedishMapping.misc] || '';
-          
-          const brandParts = supplier ? String(supplier).split(' - ') : [];
-          if (brandParts.length > 1) {
-            category = brandParts[0].trim();
-          }
-        } else if (columnMapping === "english") {
-          const englishMapping = currentMapping as typeof COLUMN_MAPPINGS['english'];
-          stockStatus = product[englishMapping.stockStatus] || 0;
-          description = product[englishMapping.description] || '';
-          category = product[englishMapping.category] || null;
-          imageUrl = product[englishMapping.imageUrl] || null;
-        }
-        
-        return {
-          article_number: String(product[currentMapping.articleNumber]),
-          name: String(product[currentMapping.productName]),
-          description,
-          price,
-          stock_status: stockStatus,
-          image_url: imageUrl,
-          category,
-          supplier
-        };
-      }).filter(Boolean);
+      const mappedProducts = products
+        .map(product => mapProductData(product, columnMapping, currentMapping))
+        .filter(Boolean);
       
       if (mappedProducts.length === 0) {
         throw new Error("Inga giltiga produkter att importera efter validering");
@@ -126,46 +97,16 @@ export const useProductImport = () => {
         const { masterName, variants } = group;
         const averagePrice = variants.reduce((sum: number, v: any) => sum + v.price, 0) / variants.length;
         
-        const { data: masterProduct, error: masterError } = await supabase
-          .from('master_products')
-          .upsert({
-            name: masterName,
-            base_price: averagePrice,
-            category: variants[0].category
-          }, {
-            onConflict: 'name'
-          })
-          .select()
-          .single();
-        
-        if (masterError) {
-          console.error('Error creating master product:', masterError);
+        try {
+          const masterProduct = await saveMasterProduct(masterName, averagePrice, variants[0].category);
+          const { successCount: batchSuccess, failedCount: batchFailed } = 
+            await saveProductVariants(variants, masterProduct.id);
+          
+          successCount += batchSuccess;
+          failedCount += batchFailed;
+        } catch (error) {
+          console.error('Error processing product group:', error);
           failedCount += variants.length;
-          continue;
-        }
-        
-        const variantUpdates = variants.map(variant => ({
-          ...variant,
-          master_product_id: masterProduct.id
-        }));
-        
-        const BATCH_SIZE = 50;
-        for (let i = 0; i < variantUpdates.length; i += BATCH_SIZE) {
-          const batch = variantUpdates.slice(i, i + BATCH_SIZE);
-          
-          const { error: variantError } = await supabase
-            .from('products')
-            .upsert(batch, {
-              onConflict: 'article_number',
-              ignoreDuplicates: false
-            });
-          
-          if (variantError) {
-            console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, variantError);
-            failedCount += batch.length;
-          } else {
-            successCount += batch.length;
-          }
         }
       }
       
@@ -173,20 +114,12 @@ export const useProductImport = () => {
         throw new Error("Ingen produkt kunde importeras. Kontrollera dina behörigheter och försök igen.");
       }
       
-      const { error: logError } = await supabase
-        .from('import_logs')
-        .insert([{
-          file_name: file.name,
-          import_status: failedCount > 0 ? 'partial' : 'completed',
-          products_added: successCount,
-          products_updated: 0,
-          supplier: mappedProducts[0]?.supplier || 'excel-import',
-          error_message: failedCount > 0 ? `${failedCount} produkter kunde inte importeras` : null
-        }]);
-        
-      if (logError) {
-        console.error('Error creating import log:', logError);
-      }
+      await saveImportLog({
+        fileName: file.name,
+        successCount,
+        failedCount,
+        supplier: mappedProducts[0]?.supplier
+      });
       
       setUploadProgress(100);
       setSelectedFile(null);
