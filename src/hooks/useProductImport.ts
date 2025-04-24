@@ -182,7 +182,8 @@ export const useProductImport = () => {
         console.log(`Bearbetar grupp: ${masterName} med ${variants.length} varianter`);
         
         try {
-          const averagePrice = variants.reduce((sum: number, v: any) => sum + v.price, 0) / variants.length;
+          // Fix for TypeScript error: Use Number() to ensure numeric types for calculations
+          const averagePrice = variants.reduce((sum: number, v: any) => sum + Number(v.price), 0) / variants.length;
           
           // Skapa huvudprodukt
           const masterProduct = await saveMasterProduct(
@@ -241,7 +242,7 @@ export const useProductImport = () => {
           
           // Hitta den vanligaste feltypen
           const mostCommonError = Object.entries(commonErrors)
-            .sort((a, b) => b[1] - a[1])[0];
+            .sort((a, b) => Number(b[1]) - Number(a[1]))[0];
           
           if (mostCommonError) {
             detailMsg = `Vanligaste felet (${mostCommonError[1]} gånger): ${
@@ -327,4 +328,3 @@ export const useProductImport = () => {
     handleImport
   };
 };
-
