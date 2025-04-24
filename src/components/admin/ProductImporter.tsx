@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { groupProductsByMaster, extractMasterProductInfo } from '@/utils/productVariants';
 
 interface ImportProgress {
   total: number;
@@ -26,7 +27,6 @@ interface ImportProgress {
   validationErrors: Array<{row: number; field: string; message: string}>;
 }
 
-// Define column mapping types
 interface ColumnMapping {
   articleNumber: string;
   productName: string;
@@ -79,7 +79,6 @@ const ProductImporter = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch the most recent successful import
     const getLastImport = async () => {
       try {
         const { data, error } = await supabase
@@ -112,12 +111,10 @@ const ProductImporter = () => {
     const errors: Array<{row: number; field: string; message: string}> = [];
     
     products.forEach((product, index) => {
-      // Skip empty rows that sometimes appear in Excel exports
       if (!product || Object.keys(product).length === 0) {
         return;
       }
       
-      // Check required fields
       if (!product[mapping.articleNumber]) {
         errors.push({row: index + 2, field: mapping.articleNumber, message: 'Artikelnummer måste anges'});
       }
@@ -126,7 +123,6 @@ const ProductImporter = () => {
         errors.push({row: index + 2, field: mapping.productName, message: 'Produktnamn måste anges'});
       }
       
-      // Validate price is a number (allowing for Swedish format with comma)
       const priceValue = product[mapping.price];
       if (priceValue !== 0 && !priceValue) {
         errors.push({row: index + 2, field: mapping.price, message: 'Pris måste anges'});
@@ -137,7 +133,6 @@ const ProductImporter = () => {
         }
       }
       
-      // Validate packaging/stock is a number if it exists
       const packagingField = mapping.packaging;
       if (packagingField && product[packagingField] && 
           isNaN(parseInt(String(product[packagingField]).replace(/\s/g, '')))) {
@@ -151,22 +146,17 @@ const ProductImporter = () => {
   const cleanNumericValue = (value: any): number => {
     if (value === undefined || value === null) return 0;
     
-    // Convert to string, handle any format
     let strValue = String(value);
     
-    // Replace comma with dot for decimal
     strValue = strValue.replace(',', '.');
     
-    // Remove any non-numeric chars except decimal points
     strValue = strValue.replace(/[^\d.]/g, '');
     
-    // Parse as float and handle NaN
     const numValue = parseFloat(strValue);
     return isNaN(numValue) ? 0 : numValue;
   };
 
   const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
-    // Skip empty rows
     if (!product || Object.keys(product).length === 0) {
       return null;
     }
@@ -176,38 +166,37 @@ const ProductImporter = () => {
       return null;
     }
     
-    // Handle price (clean and convert to number)
     const price = cleanNumericValue(product[mapping.price]);
-    
-    // Handle packaging/stock value (convert to integer)
     const packagingValue = mapping.packaging && product[mapping.packaging] 
       ? parseInt(String(product[mapping.packaging]).replace(/\s/g, '')) || 0 
       : 0;
     
-    // Extract category and supplier
     let category = null;
     let supplier = product[mapping.supplier] || null;
     
-    // For Swedish format, try to extract category from Varumärke if it contains a hyphen
     if (columnMapping === "swedish" && supplier) {
       const brandParts = String(supplier).split(' - ');
       if (brandParts.length > 1) {
         category = brandParts[0].trim();
-        // Keep the full brand as supplier
       }
     } else if (mapping.category) {
       category = product[mapping.category] || null;
     }
     
-    // Description handling - use misc field in Swedish format
     const description = mapping.misc ? product[mapping.misc] || '' 
                       : mapping.description ? product[mapping.description] || ''
                       : '';
                       
-    // Image URL handling
     const imageUrl = mapping.imageUrl ? product[mapping.imageUrl] : null;
+
+    const similarProducts = products.filter(p => 
+      p[mapping.productName].toLowerCase().startsWith(
+        product[mapping.productName].split(' ').slice(0, 3).join(' ').toLowerCase()
+      )
+    );
+
+    const masterInfo = extractMasterProductInfo(product[mapping.productName], similarProducts);
     
-    // Map the product from Excel format to database format
     return {
       article_number: String(product[mapping.articleNumber]),
       name: String(product[mapping.productName]),
@@ -216,7 +205,9 @@ const ProductImporter = () => {
       stock_status: packagingValue,
       image_url: imageUrl,
       category: category,
-      supplier: supplier
+      supplier: supplier,
+      master_name: masterInfo?.masterName || null,
+      variant_name: masterInfo?.variantName || null
     };
   };
 
@@ -236,10 +227,9 @@ const ProductImporter = () => {
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           
-          // Convert Excel data to JSON with better options for handling different formats
           const products = XLSX.utils.sheet_to_json(firstSheet, {
-            defval: null, // Use null for empty cells
-            raw: true     // Keep raw values
+            defval: null,
+            raw: true
           });
           
           setUploadProgress(40);
@@ -253,7 +243,6 @@ const ProductImporter = () => {
           
           const currentMapping = COLUMN_MAPPINGS[columnMapping];
           
-          // Check if the expected columns exist
           let firstProduct = products[0];
           let missingColumns = [];
           
@@ -268,7 +257,6 @@ const ProductImporter = () => {
             throw new Error(`Saknade kolumner i Excel-filen: ${missingColumns.join(", ")}. Kontrollera formatet och kolumnnamnen.`);
           }
           
-          // Validate products
           const validationErrors = validateProducts(products, currentMapping);
           const progressData: ImportProgress = {
             total: products.length,
@@ -295,10 +283,9 @@ const ProductImporter = () => {
           
           setUploadProgress(50);
           
-          // Map products to database format and filter out null values (invalid products)
           const mappedProducts = products
             .map(product => mapProductToDatabase(product, currentMapping))
-            .filter(Boolean); // Remove null entries
+            .filter(Boolean);
           
           console.log(`Efter mappning: ${mappedProducts.length} giltiga produkter`);
           
@@ -308,48 +295,60 @@ const ProductImporter = () => {
           
           setUploadProgress(70);
           
-          console.log("First mapped product:", mappedProducts[0]);
+          const groupedProducts = groupProductsByMaster(mappedProducts);
           
           try {
-            // Process products in smaller batches to avoid potential payload size issues
-            const BATCH_SIZE = 50;
-            let successCount = 0;
-            let failedCount = 0;
-            
-            for (let i = 0; i < mappedProducts.length; i += BATCH_SIZE) {
-              const batch = mappedProducts.slice(i, i + BATCH_SIZE);
+            for (const group of groupedProducts) {
+              const { masterName, variants } = group;
               
-              try {
-                const { data, error } = await supabase
+              const averagePrice = variants.reduce((sum, v) => sum + v.price, 0) / variants.length;
+              
+              const { data: masterProduct, error: masterError } = await supabase
+                .from('master_products')
+                .upsert({
+                  name: masterName,
+                  base_price: averagePrice,
+                  category: variants[0].category
+                }, {
+                  onConflict: 'name'
+                })
+                .select()
+                .single();
+              
+              if (masterError) {
+                console.error('Error creating master product:', masterError);
+                continue;
+              }
+              
+              const variantUpdates = variants.map(variant => ({
+                ...variant,
+                master_product_id: masterProduct.id
+              }));
+              
+              const BATCH_SIZE = 50;
+              for (let i = 0; i < variantUpdates.length; i += BATCH_SIZE) {
+                const batch = variantUpdates.slice(i, i + BATCH_SIZE);
+                
+                const { error: variantError } = await supabase
                   .from('products')
-                  .upsert(batch, { 
+                  .upsert(batch, {
                     onConflict: 'article_number',
                     ignoreDuplicates: false
                   });
-
-                if (error) {
-                  console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, error);
+                
+                if (variantError) {
+                  console.error(`Error in batch ${i/BATCH_SIZE + 1}:`, variantError);
                   failedCount += batch.length;
-                  throw error;
                 } else {
                   successCount += batch.length;
-                  console.log(`Batch ${i/BATCH_SIZE + 1} imported successfully (${batch.length} products)`);
                 }
-              } catch (batchError) {
-                console.error(`Failed to process batch ${i/BATCH_SIZE + 1}:`, batchError);
-                // Continue with next batch despite errors
               }
-              
-              // Update progress
-              setUploadProgress(70 + Math.round(20 * ((i + BATCH_SIZE) / mappedProducts.length)));
             }
-
-            // Verify results
+            
             if (successCount === 0) {
               throw new Error("Ingen produkt kunde importeras. Kontrollera dina behörigheter och försök igen.");
             }
             
-            // Create import log entry
             const { error: logError } = await supabase
               .from('import_logs')
               .insert([{
@@ -365,7 +364,6 @@ const ProductImporter = () => {
               console.error('Error creating import log:', logError);
             }
               
-            // Store the successful import in state
             const importDate = new Date().toISOString();
             setLastSuccessfulImport({
               date: importDate,
@@ -441,7 +439,6 @@ const ProductImporter = () => {
       setSelectedFile(file);
       setErrorMessage(null);
       
-      // Reset any previous validation errors
       setImportProgress(null);
     }
   };

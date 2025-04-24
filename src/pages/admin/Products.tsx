@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/admin/AdminSidebar';
@@ -27,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 
@@ -39,32 +39,49 @@ const AdminProducts = () => {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [suppliers, setSuppliers] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<string[]>([ ]);
   const [selectedSupplier, setSelectedSupplier] = useState<string>('all');
+  const [groupedView, setGroupedView] = useState(true);
 
-  // Fetch products from Supabase
+  // Modify fetchProducts to include master product information
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
+        let { data: masterProducts, error: masterError } = await supabase
+          .from('master_products')
+          .select(`
+            *,
+            products:products(*)
+          `)
           .order('name', { ascending: true });
         
-        if (error) throw error;
+        if (masterError) throw masterError;
         
-        setProducts(data || []);
-        setFilteredProducts(data || []);
+        const { data: standaloneProducts, error: productsError } = await supabase
+          .from('products')
+          .select('*')
+          .is('master_product_id', null)
+          .order('name', { ascending: true });
+          
+        if (productsError) throw productsError;
+        
+        setProducts(standaloneProducts || []);
+        setFilteredProducts(standaloneProducts || []);
         
         // Extract unique categories and suppliers
+        const allProducts = [
+          ...(standaloneProducts || []),
+          ...masterProducts?.flatMap(mp => mp.products) || []
+        ];
+        
         const uniqueCategories = Array.from(new Set(
-          data?.map(product => product.category || 'Okategoriserad')
+          allProducts.map(product => product.category || 'Okategoriserad')
             .filter(Boolean)
         )).sort();
         
         const uniqueSuppliers = Array.from(new Set(
-          data?.map(product => product.supplier || 'Okänd')
+          allProducts.map(product => product.supplier || 'Okänd')
             .filter(Boolean)
         )).sort();
         
@@ -80,7 +97,7 @@ const AdminProducts = () => {
     
     fetchProducts();
   }, []);
-  
+
   // Apply filters and sorting
   useEffect(() => {
     let result = [...products];
@@ -237,6 +254,15 @@ const AdminProducts = () => {
               </CardContent>
             </Card>
             
+            <div className="mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setGroupedView(!groupedView)}
+              >
+                {groupedView ? 'Visa alla produkter' : 'Visa grupperade produkter'}
+              </Button>
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl">
@@ -254,57 +280,22 @@ const AdminProducts = () => {
                   </div>
                 ) : filteredProducts.length > 0 ? (
                   <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-                              onClick={() => handleSortChange('article_number')}
-                            >
-                              Artikelnr {getSortIcon('article_number')}
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-                              onClick={() => handleSortChange('name')}
-                            >
-                              Namn {getSortIcon('name')}
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-left">
-                            <button 
-                              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground"
-                              onClick={() => handleSortChange('category')}
-                            >
-                              Kategori {getSortIcon('category')}
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-right">
-                            <button 
-                              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground ml-auto"
-                              onClick={() => handleSortChange('price')}
-                            >
-                              Pris {getSortIcon('price')}
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-right">
-                            <button 
-                              className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground ml-auto"
-                              onClick={() => handleSortChange('stock')}
-                            >
-                              Lagerstatus {getSortIcon('stock')}
-                            </button>
-                          </th>
-                          <th className="px-4 py-3 text-center">Åtgärder</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Artikelnr</TableHead>
+                          <TableHead>Namn</TableHead>
+                          <TableHead>Kategori</TableHead>
+                          <TableHead className="text-right">Pris</TableHead>
+                          <TableHead className="text-right">Lager</TableHead>
+                          <TableHead className="text-center">Åtgärder</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {filteredProducts.map((product) => (
-                          <tr key={product.id} className="border-b hover:bg-muted/50">
-                            <td className="px-4 py-3 font-mono text-sm">{product.article_number}</td>
-                            <td className="px-4 py-3 font-medium">
+                          <TableRow key={product.id} className="group">
+                            <TableCell className="font-mono">{product.article_number}</TableCell>
+                            <TableCell>
                               <div className="flex items-center gap-3">
                                 {product.image_url && (
                                   <img 
@@ -313,18 +304,27 @@ const AdminProducts = () => {
                                     className="h-8 w-8 rounded object-cover"
                                   />
                                 )}
-                                <span>{product.name}</span>
+                                <div>
+                                  <div className="font-medium">{product.name}</div>
+                                  {product.variant_name && (
+                                    <div className="text-sm text-muted-foreground">
+                                      Variant: {product.variant_name}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell>
                               {product.category ? (
                                 <Badge variant="outline">{product.category}</Badge>
                               ) : (
-                                <span className="text-muted-foreground text-sm">Okategoriserad</span>
+                                <span className="text-muted-foreground text-sm">
+                                  Okategoriserad
+                                </span>
                               )}
-                            </td>
-                            <td className="px-4 py-3 text-right">{product.price} kr</td>
-                            <td className="px-4 py-3 text-right">
+                            </TableCell>
+                            <TableCell className="text-right">{product.price} kr</TableCell>
+                            <TableCell className="text-right">
                               <Badge 
                                 variant={product.stock_status > 10 ? "default" : 
                                         product.stock_status > 0 ? "outline" : 
@@ -332,8 +332,8 @@ const AdminProducts = () => {
                               >
                                 {product.stock_status}
                               </Badge>
-                            </td>
-                            <td className="px-4 py-3">
+                            </TableCell>
+                            <TableCell>
                               <div className="flex justify-center gap-2">
                                 <Button size="icon" variant="ghost">
                                   <Edit className="h-4 w-4" />
@@ -342,16 +342,18 @@ const AdminProducts = () => {
                                   <Trash className="h-4 w-4" />
                                 </Button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p>Inga produkter matchade filtret</p>
-                    <Button variant="link" onClick={resetFilters}>Återställ filter</Button>
+                    <Button variant="link" onClick={resetFilters}>
+                      Återställ filter
+                    </Button>
                   </div>
                 )}
               </CardContent>

@@ -303,6 +303,36 @@ export type Database = {
         }
         Relationships: []
       }
+      master_products: {
+        Row: {
+          base_price: number
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          base_price: number
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          base_price?: number
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string | null
@@ -407,11 +437,14 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          master_product_id: string | null
           name: string
           price: number
           stock_status: number
           supplier: string | null
           updated_at: string | null
+          variant_name: string | null
+          variant_type: string | null
         }
         Insert: {
           article_number: string
@@ -420,11 +453,14 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          master_product_id?: string | null
           name: string
           price: number
           stock_status?: number
           supplier?: string | null
           updated_at?: string | null
+          variant_name?: string | null
+          variant_type?: string | null
         }
         Update: {
           article_number?: string
@@ -433,13 +469,24 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          master_product_id?: string | null
           name?: string
           price?: number
           stock_status?: number
           supplier?: string | null
           updated_at?: string | null
+          variant_name?: string | null
+          variant_type?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_master_product_id_fkey"
+            columns: ["master_product_id"]
+            isOneToOne: false
+            referencedRelation: "master_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       properties: {
         Row: {
