@@ -73,7 +73,9 @@ export const saveProductVariants = async (
         source
       }));
       
-      console.log(`Sparar batch ${i/BATCH_SIZE + 1} med ${batch.length} varianter`);
+      // Fix for TypeScript error: Use Number() to ensure numeric types for batch index calculation
+      const batchIndex = Math.floor(i / BATCH_SIZE) + 1;
+      console.log(`Sparar batch ${batchIndex} med ${batch.length} varianter`);
       
       try {
         const { data, error: variantError } = await supabase
@@ -85,7 +87,7 @@ export const saveProductVariants = async (
           .select();
         
         if (variantError) {
-          console.error(`Error i batch ${i/BATCH_SIZE + 1}:`, variantError);
+          console.error(`Error i batch ${batchIndex}:`, variantError);
           console.error(`SQL Error code: ${variantError.code}, Detaljer: ${variantError.details}`);
           
           // Hantera specifika SQL-felkoder
@@ -100,7 +102,7 @@ export const saveProductVariants = async (
           
           failedCount += batch.length;
           errors.push({
-            batchIndex: i/BATCH_SIZE + 1,
+            batchIndex: batchIndex,
             code: variantError.code,
             message: errorMessage,
             details: variantError.details
@@ -123,7 +125,7 @@ export const saveProductVariants = async (
             
             failedCount += missingCount;
             errors.push({
-              batchIndex: i/BATCH_SIZE + 1,
+              batchIndex: batchIndex,
               code: 'INCOMPLETE_BATCH',
               message: `${missingCount} produkter bearbetades inte`,
               details: `Några produkter kunde inte sparas. Exempel: ${missedProducts.join(', ')}${
@@ -133,10 +135,10 @@ export const saveProductVariants = async (
           }
         }
       } catch (batchError: any) {
-        console.error(`Exception i batch ${i/BATCH_SIZE + 1}:`, batchError);
+        console.error(`Exception i batch ${batchIndex}:`, batchError);
         failedCount += batch.length;
         errors.push({
-          batchIndex: i/BATCH_SIZE + 1,
+          batchIndex: batchIndex,
           message: batchError.message,
           stack: batchError.stack
         });
@@ -166,3 +168,4 @@ export const saveProductVariants = async (
     };
   }
 };
+
