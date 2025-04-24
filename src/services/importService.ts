@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { batchCategorizeProducts, categorizeProduct, getCategoryFromName, cleanSupplierName } from "@/utils/productCategorization";
 
@@ -64,7 +63,6 @@ export const saveProductVariants = async (
   return { successCount, failedCount };
 };
 
-// Save import log to track import history
 export const saveImportLog = async (logData: {
   fileName: string;
   successCount: number;
@@ -86,7 +84,6 @@ export const saveImportLog = async (logData: {
   }
 };
 
-// Function to clean Excel imported products
 export const cleanExcelImportedProducts = async () => {
   try {
     // Delete product variants with source = 'excel'
@@ -127,7 +124,6 @@ export const cleanExcelImportedProducts = async () => {
   }
 };
 
-// Function to categorize existing products
 export const categorizeExistingProducts = async () => {
   try {
     let processedCount = 0;
@@ -157,14 +153,21 @@ export const categorizeExistingProducts = async () => {
         // Check if categorization made any changes
         const hasChanged = 
           product.category !== categorizedProduct.category ||
-          product.subcategory !== categorizedProduct.subcategory ||
-          product.supplier !== categorizedProduct.supplier;
+          (categorizedProduct.subcategory !== undefined && product.category !== categorizedProduct.subcategory);
           
         if (hasChanged) {
           updatedCount++;
         }
         
-        return categorizedProduct;
+        return {
+          ...categorizedProduct,
+          id: product.id,
+          article_number: product.article_number,
+          name: product.name,
+          price: product.price,
+          stock_status: product.stock_status,
+          source: product.source
+        };
       });
       
       // Update products in database
@@ -186,7 +189,6 @@ export const categorizeExistingProducts = async () => {
   }
 };
 
-// Function to sync categories to categories table
 export const syncCategoriesToTable = async () => {
   try {
     // Get all unique categories from products
