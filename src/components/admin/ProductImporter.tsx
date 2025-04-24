@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { ImportStatus } from './ImportStatus';
 import { processExcelFile, validateProducts } from '@/utils/excelProcessing';
 import { groupProductsByMaster, extractMasterProductInfo } from '@/utils/productVariants';
-import type { ImportProgress, ColumnMapping } from '@/types/importing';
+import type { ImportProgress, ColumnMapping, ColumnMappingType, SwedishColumnMapping, EnglishColumnMapping } from '@/types/importing';
 import { COLUMN_MAPPINGS } from '@/types/importing';
 
 const ProductImporter = () => {
@@ -134,34 +133,59 @@ const ProductImporter = () => {
         }
         
         const price = Number(String(product[currentMapping.price]).replace(',', '.'));
-        const packagingValue = currentMapping.packaging && product[currentMapping.packaging] 
-          ? parseInt(String(product[currentMapping.packaging]).replace(/\s/g, '')) || 0 
-          : 0;
         
+        let stockStatus = 0;
+        
+        // Handle packaging field differently based on mapping type
+        if (columnMapping === "swedish" && 'packaging' in currentMapping) {
+          const swedishMapping = currentMapping as SwedishColumnMapping;
+          stockStatus = product[swedishMapping.packaging] 
+            ? parseInt(String(product[swedishMapping.packaging]).replace(/\s/g, '')) || 0 
+            : 0;
+        } else if (columnMapping === "english" && 'stockStatus' in currentMapping) {
+          const englishMapping = currentMapping as EnglishColumnMapping;
+          stockStatus = product[englishMapping.stockStatus] || 0;
+        }
+        
+        // Handle category field
         let category = null;
         let supplier = product[currentMapping.supplier] || null;
         
-        if (columnMapping === "swedish" && supplier) {
-          const brandParts = String(supplier).split(' - ');
+        if (columnMapping === "swedish") {
+          // For Swedish format, extract category from supplier if possible
+          const brandParts = supplier ? String(supplier).split(' - ') : [];
           if (brandParts.length > 1) {
             category = brandParts[0].trim();
           }
-        } else if (currentMapping.category) {
-          category = product[currentMapping.category] || null;
+        } else if (columnMapping === "english" && 'category' in currentMapping) {
+          // For English format, use category directly
+          const englishMapping = currentMapping as EnglishColumnMapping;
+          category = product[englishMapping.category] || null;
         }
         
-        const description = currentMapping.misc ? product[currentMapping.misc] || '' 
-                          : currentMapping.description ? product[currentMapping.description] || ''
-                          : '';
-                          
-        const imageUrl = currentMapping.imageUrl ? product[currentMapping.imageUrl] : null;
+        // Handle description field
+        let description = '';
+        if (columnMapping === "swedish" && 'misc' in currentMapping) {
+          const swedishMapping = currentMapping as SwedishColumnMapping;
+          description = product[swedishMapping.misc] || '';
+        } else if (columnMapping === "english" && 'description' in currentMapping) {
+          const englishMapping = currentMapping as EnglishColumnMapping;
+          description = product[englishMapping.description] || '';
+        }
+        
+        // Handle image url
+        let imageUrl = null;
+        if (columnMapping === "english" && 'imageUrl' in currentMapping) {
+          const englishMapping = currentMapping as EnglishColumnMapping;
+          imageUrl = product[englishMapping.imageUrl] || null;
+        }
         
         return {
           article_number: String(product[currentMapping.articleNumber]),
           name: String(product[currentMapping.productName]),
           description: description,
           price: price,
-          stock_status: packagingValue,
+          stock_status: stockStatus,
           image_url: imageUrl,
           category: category,
           supplier: supplier

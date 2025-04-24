@@ -29,10 +29,10 @@ export const validateProducts = (products: any[], mapping: ColumnMapping) => {
       }
     }
     
-    const packagingField = mapping.packaging;
-    if (packagingField && product[packagingField] && 
-        isNaN(parseInt(String(product[packagingField]).replace(/\s/g, '')))) {
-      errors.push({row: index + 2, field: packagingField, message: 'Förpackning måste vara ett heltal'});
+    // Check packaging field if it exists in mapping
+    if ('packaging' in mapping && mapping.packaging && product[mapping.packaging] && 
+        isNaN(parseInt(String(product[mapping.packaging]).replace(/\s/g, '')))) {
+      errors.push({row: index + 2, field: mapping.packaging, message: 'Förpackning måste vara ett heltal'});
     }
   });
   

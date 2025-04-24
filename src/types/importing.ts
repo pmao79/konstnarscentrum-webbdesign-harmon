@@ -24,7 +24,35 @@ export interface ImportProgress {
   validationErrors: Array<{row: number; field: string; message: string}>;
 }
 
-export const COLUMN_MAPPINGS = {
+export interface SwedishColumnMapping {
+  articleNumber: string;
+  productName: string;
+  price: string;
+  packaging: string;
+  unit: string;
+  ean: string;
+  code: string;
+  misc: string;
+  supplier: string;
+}
+
+export interface EnglishColumnMapping {
+  articleNumber: string;
+  productName: string;
+  description: string;
+  price: string;
+  stockStatus: string;
+  imageUrl: string;
+  category: string;
+  supplier: string;
+}
+
+export type ColumnMappingType = {
+  swedish: SwedishColumnMapping;
+  english: EnglishColumnMapping;
+};
+
+export const COLUMN_MAPPINGS: ColumnMappingType = {
   swedish: {
     articleNumber: "Artikelnummer",
     productName: "Benämning",
@@ -46,4 +74,4 @@ export const COLUMN_MAPPINGS = {
     category: "Category",
     supplier: "Supplier"
   }
-} as const;
+};
