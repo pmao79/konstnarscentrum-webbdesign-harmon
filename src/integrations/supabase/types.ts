@@ -311,6 +311,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          source: string
           updated_at: string | null
         }
         Insert: {
@@ -320,6 +321,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          source?: string
           updated_at?: string | null
         }
         Update: {
@@ -329,6 +331,7 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          source?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -440,6 +443,7 @@ export type Database = {
           master_product_id: string | null
           name: string
           price: number
+          source: string
           stock_status: number
           supplier: string | null
           updated_at: string | null
@@ -456,6 +460,7 @@ export type Database = {
           master_product_id?: string | null
           name: string
           price: number
+          source?: string
           stock_status?: number
           supplier?: string | null
           updated_at?: string | null
@@ -472,6 +477,7 @@ export type Database = {
           master_product_id?: string | null
           name?: string
           price?: number
+          source?: string
           stock_status?: number
           supplier?: string | null
           updated_at?: string | null

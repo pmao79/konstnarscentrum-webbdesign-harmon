@@ -1,15 +1,18 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ImportStatus } from './ImportStatus';
 import { ImportFileUpload } from './ImportFileUpload';
 import { ImportFormatHelp } from './ImportFormatHelp';
 import { useProductImport } from '@/hooks/useProductImport';
 import { ColumnMappingType } from '@/types/importing';
 import ProductCategorization from './ProductCategorization';
+import { cleanExcelImportedProducts } from '@/services/importService';
 
 const ProductImporter = () => {
   const {
@@ -24,6 +27,8 @@ const ProductImporter = () => {
   
   const [columnMapping, setColumnMapping] = useState<keyof ColumnMappingType>("swedish");
   const [lastSuccessfulImport, setLastSuccessfulImport] = useState<{date: string, count: number} | null>(null);
+  const [isCleaningProducts, setIsCleaningProducts] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const getLastImport = async () => {
@@ -64,11 +69,58 @@ const ProductImporter = () => {
     }
   };
 
+  const handleCleanExcelProducts = async () => {
+    setIsCleaningProducts(true);
+    const result = await cleanExcelImportedProducts();
+    
+    if (result.success) {
+      toast({
+        title: "Produktrensning slutförd",
+        description: "Alla Excel-importerade produkter har raderats.",
+        variant: "default"
+      });
+    } else {
+      toast({
+        title: "Fel vid produktrensning",
+        description: result.message,
+        variant: "destructive"
+      });
+    }
+    setIsCleaningProducts(false);
+  };
+
   return (
     <div className="grid gap-8">
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl font-serif">Importera produkter</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-xl font-serif">Importera produkter</CardTitle>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  Rensa Excel-produkter
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rensa Excel-importerade produkter?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Detta kommer att radera alla tidigare importerade produkter från Excel. 
+                    API-kopplade produkter påverkas inte. Vill du fortsätta?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Avbryt</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleCleanExcelProducts} 
+                    disabled={isCleaningProducts}
+                  >
+                    {isCleaningProducts ? 'Rensar...' : 'Rensa produkter'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">

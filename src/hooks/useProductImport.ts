@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast";
 import { processExcelFile } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
@@ -98,9 +97,15 @@ export const useProductImport = () => {
         const averagePrice = variants.reduce((sum: number, v: any) => sum + v.price, 0) / variants.length;
         
         try {
-          const masterProduct = await saveMasterProduct(masterName, averagePrice, variants[0].category);
+          const masterProduct = await saveMasterProduct(
+            masterName, 
+            averagePrice, 
+            variants[0].category,
+            'excel'
+          );
+          
           const { successCount: batchSuccess, failedCount: batchFailed } = 
-            await saveProductVariants(variants, masterProduct.id);
+            await saveProductVariants(variants, masterProduct.id, 'excel');
           
           successCount += batchSuccess;
           failedCount += batchFailed;
