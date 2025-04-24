@@ -78,10 +78,12 @@ export const saveProductVariants = async (
       console.log(`Sparar batch ${batchIndex} med ${batch.length} varianter`);
       
       try {
+        // VIKTIG KORRIGERING: Ändra ON CONFLICT för att specificera vilken kolumn
+        // vi uppdaterar mot, vilket måste matcha kolumnnamnet i unique_article_number
         const { data, error: variantError } = await supabase
           .from('products')
           .upsert(batch, {
-            onConflict: 'article_number',
+            onConflict: 'article_number',  // Detta måste matcha kolumnnamnet i constrainten
             ignoreDuplicates: false
           })
           .select();
@@ -98,6 +100,8 @@ export const saveProductVariants = async (
             errorMessage = `Saknar behörighet: ${variantError.message}`;
           } else if (variantError.code === '23503') {
             errorMessage = `Referensfel: ${variantError.details || 'Kontrollera att alla nödvändiga relationer finns'}`;
+          } else if (variantError.code === '42P10') {
+            errorMessage = `ON CONFLICT fel: Det finns ingen matchande constraint - kontrollera att artikelnumren är korrekt formaterade`;
           }
           
           failedCount += batch.length;

@@ -10,6 +10,7 @@ export const saveMasterProduct = async (
   try {
     console.log(`Attempting to create/update master product: ${masterName}`);
     
+    // Här korrigerar vi ON CONFLICT för master_products-tabellen
     const { data: masterProduct, error: masterError } = await supabase
       .from('master_products')
       .upsert({
@@ -18,13 +19,21 @@ export const saveMasterProduct = async (
         category,
         source
       }, {
-        onConflict: 'name'
+        onConflict: 'name'  // Säkerställer att vi använder rätt kolumnnamn 
       })
       .select()
       .single();
 
     if (masterError) {
       console.error('Error creating master product:', masterError);
+      // Logga detaljerad information för felsökning
+      if (masterError.code === '42P10') {
+        console.error('ON CONFLICT constraint error details:', {
+          message: masterError.message,
+          details: masterError.details,
+          code: masterError.code
+        });
+      }
       throw new Error(`Error creating master product: ${masterError.message} (${masterError.code})`);
     }
 
@@ -39,3 +48,4 @@ export const saveMasterProduct = async (
     throw error;
   }
 };
+
