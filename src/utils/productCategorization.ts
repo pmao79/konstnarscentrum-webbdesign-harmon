@@ -62,6 +62,10 @@ const brandMappings: BrandMapping[] = [
   { pattern: /rembrandt/i, brand: "Rembrandt" },
   { pattern: /cretacolor/i, brand: "Cretacolor" },
   { pattern: /faber\s*castell|faber castell/i, brand: "Faber-Castell" },
+  { pattern: /sennelier/i, brand: "Sennelier" },
+  { pattern: /aba\s*skol|aba-skol/i, brand: "ABA-Skol" },
+  { pattern: /alres/i, brand: "Alres" },
+  { pattern: /artograph/i, brand: "Artograph" },
 ];
 
 /**
@@ -161,4 +165,3 @@ export const cleanSupplierName = (supplier: string | null): string => {
     .replace(/ - Artist Materials$/, '')
     .trim();
 };
-
