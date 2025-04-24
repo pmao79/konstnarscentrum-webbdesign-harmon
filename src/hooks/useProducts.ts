@@ -1,6 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { cleanSupplierName } from '@/utils/productCategorization';
 
 export type FilterOptions = {
   category?: string;
@@ -66,8 +67,10 @@ export const useProducts = (filters: FilterOptions = {}) => {
 
       if (brand) {
         console.log("Filtering by brand/supplier:", brand);
-        countQuery = countQuery.eq('supplier', brand);
-        query = query.eq('supplier', brand);
+        // Brand might be stored as full name with suffix, like "Winsor & Newton - Konstnärsmaterial"
+        const cleanedBrand = brand.replace(/\s-\s.*$/, '');
+        countQuery = countQuery.ilike('supplier', `%${cleanedBrand}%`);
+        query = query.ilike('supplier', `%${cleanedBrand}%`);
       }
 
       if (priceRange?.min !== undefined) {
@@ -143,9 +146,18 @@ export const useProducts = (filters: FilterOptions = {}) => {
         throw dataResult.error;
       }
 
+      // Clean supplier names for display
+      if (dataResult.data) {
+        dataResult.data = dataResult.data.map(product => ({
+          ...product,
+          displaySupplier: cleanSupplierName(product.supplier)
+        }));
+      }
+
       console.log("Query results:", {
         count: countResult.count,
-        dataLength: dataResult.data?.length
+        dataLength: dataResult.data?.length,
+        filters
       });
 
       return {

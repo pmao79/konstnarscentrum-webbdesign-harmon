@@ -18,10 +18,7 @@ const AdminImports = () => {
               <p className="text-muted-foreground">Importera och hantera produktdata</p>
             </div>
 
-            <div className="grid gap-8">
-              <ProductImporter />
-              <ImportHistory />
-            </div>
+            <ProductImporter />
           </div>
         </SidebarInset>
       </div>

@@ -180,3 +180,4 @@ export const syncCategoriesToTable = async () => {
     categoriesInserted: insertedCount 
   };
 };
+

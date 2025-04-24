@@ -9,6 +9,7 @@ import { ImportFileUpload } from './ImportFileUpload';
 import { ImportFormatHelp } from './ImportFormatHelp';
 import { useProductImport } from '@/hooks/useProductImport';
 import { ColumnMappingType } from '@/types/importing';
+import ProductCategorization from './ProductCategorization';
 
 const ProductImporter = () => {
   const {
@@ -64,52 +65,57 @@ const ProductImporter = () => {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl font-serif">Importera produkter</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          <div className="grid gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="column-format">Välj kolumnformat</Label>
-              <Select 
-                value={columnMapping} 
-                onValueChange={(value) => setColumnMapping(value as keyof ColumnMappingType)}
-              >
-                <SelectTrigger id="column-format" className="w-[180px]">
-                  <SelectValue placeholder="Välj format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="swedish">Svenska kolumner</SelectItem>
-                    <SelectItem value="english">Engelska kolumner</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+    <div className="grid gap-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl font-serif">Importera produkter</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-4">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="column-format">Välj kolumnformat</Label>
+                <Select 
+                  value={columnMapping} 
+                  onValueChange={(value) => setColumnMapping(value as keyof ColumnMappingType)}
+                >
+                  <SelectTrigger id="column-format" className="w-[180px]">
+                    <SelectValue placeholder="Välj format" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="swedish">Svenska kolumner</SelectItem>
+                      <SelectItem value="english">Engelska kolumner</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <ImportFileUpload
+                isLoading={isLoading}
+                selectedFile={selectedFile}
+                lastSuccessfulImport={lastSuccessfulImport}
+                onFileSelect={handleFileUpload}
+                onImport={handleStartImport}
+              />
             </div>
             
-            <ImportFileUpload
+            <ImportStatus 
               isLoading={isLoading}
-              selectedFile={selectedFile}
-              lastSuccessfulImport={lastSuccessfulImport}
-              onFileSelect={handleFileUpload}
-              onImport={handleStartImport}
+              uploadProgress={uploadProgress}
+              importProgress={importProgress}
+              errorMessage={errorMessage}
             />
+            
+            <ImportFormatHelp columnMapping={columnMapping} />
           </div>
-          
-          <ImportStatus 
-            isLoading={isLoading}
-            uploadProgress={uploadProgress}
-            importProgress={importProgress}
-            errorMessage={errorMessage}
-          />
-          
-          <ImportFormatHelp columnMapping={columnMapping} />
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      <ProductCategorization />
+    </div>
   );
 };
 
 export default ProductImporter;
+

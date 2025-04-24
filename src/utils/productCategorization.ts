@@ -161,3 +161,4 @@ export const cleanSupplierName = (supplier: string | null): string => {
     .replace(/ - Artist Materials$/, '')
     .trim();
 };
+

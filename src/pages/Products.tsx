@@ -9,14 +9,17 @@ import ProductSort from '@/components/shop/ProductSort';
 import ProductGrid from '@/components/shop/ProductGrid';
 import { useProducts, FilterOptions } from '@/hooks/useProducts';
 import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 // Based on existing product categories in the database
 const categories = [
-  { name: "Färg", subcategories: ["Akvarell", "Akryl", "Olja", "Gouache"] },
+  { name: "Färg", subcategories: ["Akvarellfärg", "Akrylfärg", "Oljefärg", "Gouache"] },
   { name: "Penslar", subcategories: ["Akvarellpenslar", "Akrylpenslar", "Oljepenslar"] },
   { name: "Papper", subcategories: ["Akvarellpapper", "Skissblock", "Canvas"] },
   { name: "Stafflier", subcategories: ["Bordsställ", "Golvstaffli", "Fältstaffli"] },
-  { name: "Winsor & Newton", subcategories: ["Färger", "Penslar", "Tillbehör"] },
+  { name: "Böcker", subcategories: ["Teknikböcker"] },
+  { name: "Tillbehör", subcategories: ["Paletter", "Verktyg"] },
 ];
 
 const Products = () => {
@@ -39,7 +42,7 @@ const Products = () => {
   });
   
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const { data: productData, isLoading, error } = useProducts(filters);
+  const { data: productData, isLoading, error, refetch } = useProducts(filters);
 
   // Display data in console for debugging
   useEffect(() => {
@@ -129,6 +132,27 @@ const Products = () => {
     });
   };
 
+  const isFiltered = !!(filters.category || filters.subcategory || filters.brand || 
+                       filters.search || filters.priceRange?.min || filters.priceRange?.max);
+
+  const NoProductsFound = () => (
+    <div className="text-center py-10">
+      <h3 className="text-lg font-medium mb-2">Inga produkter hittades</h3>
+      <p className="text-muted-foreground mb-6">
+        Vi hittade inga produkter som matchar dina valda filter
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Button onClick={clearFilters} variant="default">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Rensa alla filter
+        </Button>
+        <Button onClick={() => refetch()} variant="outline">
+          Försök igen
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
     <Layout>
       <ProductsHero />
@@ -166,15 +190,19 @@ const Products = () => {
               onProductsPerPageChange={handleProductsPerPageChange}
             />
             
-            <ProductGrid
-              products={productData?.data || []}
-              isLoading={isLoading}
-              error={error as Error}
-              totalProducts={productData?.count}
-              currentPage={filters.page || 1}
-              productsPerPage={filters.limit || 24}
-              onPageChange={handlePageChange}
-            />
+            {productData?.count === 0 && isFiltered && !isLoading ? (
+              <NoProductsFound />
+            ) : (
+              <ProductGrid
+                products={productData?.data || []}
+                isLoading={isLoading}
+                error={error as Error}
+                totalProducts={productData?.count}
+                currentPage={filters.page || 1}
+                productsPerPage={filters.limit || 24}
+                onPageChange={handlePageChange}
+              />
+            )}
           </div>
         </div>
       </div>

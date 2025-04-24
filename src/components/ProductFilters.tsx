@@ -7,6 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { FilterX, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { FilterOptions } from '@/hooks/useProducts';
+import { cleanSupplierName } from '@/utils/productCategorization';
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProductFiltersProps {
   filters: FilterOptions;
@@ -35,6 +37,60 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
     price: true,
     brands: true
   });
+
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<{ name: string; subcategories: string[] }[]>([]);
+
+  // Fetch available categories and brands from the database
+  useEffect(() => {
+    const fetchFilters = async () => {
+      try {
+        // Fetch unique categories
+        const { data: categoryData, error: categoryError } = await supabase
+          .from('products')
+          .select('category')
+          .not('category', 'is', null);
+        
+        if (categoryError) {
+          console.error('Error fetching categories:', categoryError);
+        } else if (categoryData) {
+          // Extract unique categories
+          const uniqueCategories = Array.from(
+            new Set(categoryData.map(item => item.category).filter(Boolean))
+          );
+
+          // Create category objects with subcategories
+          const formattedCategories = uniqueCategories.map(category => ({
+            name: category,
+            subcategories: [] // For now, we'll leave subcategories empty
+          }));
+
+          setAvailableCategories(formattedCategories);
+        }
+        
+        // Fetch unique suppliers/brands
+        const { data: supplierData, error: supplierError } = await supabase
+          .from('products')
+          .select('supplier')
+          .not('supplier', 'is', null);
+        
+        if (supplierError) {
+          console.error('Error fetching suppliers:', supplierError);
+        } else if (supplierData) {
+          // Clean and extract unique suppliers
+          const uniqueSuppliers = Array.from(
+            new Set(supplierData.map(item => cleanSupplierName(item.supplier)).filter(Boolean))
+          ).sort();
+          
+          setAvailableBrands(uniqueSuppliers);
+        }
+      } catch (err) {
+        console.error('Error fetching filter data:', err);
+      }
+    };
+    
+    fetchFilters();
+  }, []);
 
   // Update local price range when filters prop changes (e.g. on reset)
   useEffect(() => {
@@ -86,17 +142,6 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
       brand: filters.brand === brand ? undefined : brand
     });
   };
-
-  // List of available brands pulled from our product data
-  // These match the supplier field in the products table
-  const availableBrands = [
-    "Winsor & Newton - Konstnärsmaterial",
-    "Schmincke", 
-    "Daniel Smith", 
-    "Golden", 
-    "Liquitex", 
-    "Daler-Rowney"
-  ];
 
   const activeFilterCount = [
     filters.category, 
@@ -158,7 +203,47 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
             
             {expandedSections.categories && (
               <div className="space-y-3">
-                {categories.map((category) => (
+                {availableCategories.length > 0 ? (
+                  availableCategories.map((category) => (
+                    <div key={category.name} className="space-y-1">
+                      <div className="flex items-center">
+                        <Checkbox 
+                          id={category.name} 
+                          checked={filters.category === category.name}
+                          onCheckedChange={() => handleCategoryChange(category.name)}
+                          className="mr-2"
+                        />
+                        <label 
+                          htmlFor={category.name} 
+                          className={`text-sm ${filters.category === category.name ? "font-medium" : ""}`}
+                        >
+                          {category.name}
+                        </label>
+                      </div>
+                      
+                      {filters.category === category.name && category.subcategories.length > 0 && (
+                        <div className="ml-6 space-y-1 mt-1">
+                          {category.subcategories.map((subcategory) => (
+                            <div key={subcategory} className="flex items-center">
+                              <Checkbox 
+                                id={subcategory} 
+                                checked={filters.subcategory === subcategory}
+                                onCheckedChange={() => handleSubcategoryChange(subcategory)}
+                                className="mr-2"
+                              />
+                              <label 
+                                htmlFor={subcategory} 
+                                className={`text-sm ${filters.subcategory === subcategory ? "font-medium" : ""}`}
+                              >
+                                {subcategory}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : categories.map((category) => (
                   <div key={category.name} className="space-y-1">
                     <div className="flex items-center">
                       <Checkbox 
@@ -274,7 +359,7 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
             
             {expandedSections.brands && (
               <div className="space-y-2">
-                {availableBrands.map((brand) => (
+                {availableBrands.length > 0 ? availableBrands.map((brand) => (
                   <div key={brand} className="flex items-center">
                     <Checkbox 
                       id={`brand-${brand}`} 
@@ -289,7 +374,11 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
                       {brand}
                     </label>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-sm text-muted-foreground">
+                    Inga varumärken hittades
+                  </div>
+                )}
               </div>
             )}
           </div>

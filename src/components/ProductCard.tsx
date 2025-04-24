@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
-import { ShoppingBag, Star } from 'lucide-react';
+import { ShoppingBag } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cleanSupplierName } from '@/utils/productCategorization';
 
@@ -19,6 +19,7 @@ interface ProductCardProps {
     article_number: string;
     supplier: string | null;
     master_product?: any;
+    displaySupplier?: string;
   };
 }
 
@@ -35,10 +36,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     });
   };
   
-  const isNewProduct = () => {
-    return false; // Default to not new
-  };
-  
   const getStockStatusText = () => {
     if (product.stock_status <= 0) return "Slut i lager";
     if (product.stock_status < 5) return "Få i lager";
@@ -52,9 +49,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
 
   // Extract brand/supplier name for display
-  const displaySupplier = product.supplier ? 
-    cleanSupplierName(product.supplier) : 
-    product.category || "Övrigt";
+  const displaySupplier = product.displaySupplier || 
+    (product.supplier ? cleanSupplierName(product.supplier) : 
+    product.category || "Övrigt");
   
   return (
     <Link to={`/produkter/${product.id}`}>
@@ -65,11 +62,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             alt={product.name} 
             className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
           />
-          {isNewProduct() && (
-            <Badge className="absolute top-2 right-2 bg-art-sand text-stone-900 font-medium">
-              Nyhet
-            </Badge>
-          )}
         </div>
         <CardContent className="p-4">
           <div className="flex justify-between">
