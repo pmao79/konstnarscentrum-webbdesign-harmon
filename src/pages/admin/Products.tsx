@@ -19,10 +19,18 @@ const AdminProducts = () => {
     setSearch,
     selectedCategory,
     setSelectedCategory,
-    selectedSupplier,
-    setSelectedSupplier,
+    selectedSubcategory,
+    setSelectedSubcategory,
+    selectedBrand,
+    setSelectedBrand,
+    selectedProductGroup,
+    setSelectedProductGroup,
+    inStockOnly,
+    setInStockOnly,
     categories,
-    suppliers,
+    subcategories,
+    brands,
+    productGroups,
     groupedView,
     setGroupedView,
     resetFilters
@@ -47,10 +55,18 @@ const AdminProducts = () => {
                   onSearchChange={setSearch}
                   selectedCategory={selectedCategory}
                   onCategoryChange={setSelectedCategory}
-                  selectedSupplier={selectedSupplier}
-                  onSupplierChange={setSelectedSupplier}
+                  selectedSubcategory={selectedSubcategory}
+                  onSubcategoryChange={setSelectedSubcategory}
+                  selectedBrand={selectedBrand}
+                  onBrandChange={setSelectedBrand}
+                  selectedProductGroup={selectedProductGroup}
+                  onProductGroupChange={setSelectedProductGroup}
+                  inStockOnly={inStockOnly}
+                  onInStockChange={setInStockOnly}
                   categories={categories}
-                  suppliers={suppliers}
+                  subcategories={subcategories}
+                  brands={brands}
+                  productGroups={productGroups}
                   onResetFilters={resetFilters}
                 />
               </CardContent>

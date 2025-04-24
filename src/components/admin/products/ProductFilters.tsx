@@ -4,16 +4,25 @@ import { Search, Filter, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ProductFiltersProps {
   search: string;
   onSearchChange: (value: string) => void;
   selectedCategory: string;
   onCategoryChange: (value: string) => void;
-  selectedSupplier: string;
-  onSupplierChange: (value: string) => void;
+  selectedSubcategory: string;
+  onSubcategoryChange: (value: string) => void;
+  selectedBrand: string;
+  onBrandChange: (value: string) => void;
+  selectedProductGroup: string;
+  onProductGroupChange: (value: string) => void;
+  inStockOnly: boolean;
+  onInStockChange: (value: boolean) => void;
   categories: string[];
-  suppliers: string[];
+  subcategories: string[];
+  brands: string[];
+  productGroups: string[];
   onResetFilters: () => void;
 }
 
@@ -22,13 +31,26 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
   onSearchChange,
   selectedCategory,
   onCategoryChange,
-  selectedSupplier,
-  onSupplierChange,
+  selectedSubcategory,
+  onSubcategoryChange,
+  selectedBrand,
+  onBrandChange,
+  selectedProductGroup,
+  onProductGroupChange,
+  inStockOnly,
+  onInStockChange,
   categories,
-  suppliers,
+  subcategories,
+  brands,
+  productGroups,
   onResetFilters,
 }) => {
-  const showResetButton = search || selectedCategory !== 'all' || selectedSupplier !== 'all';
+  const showResetButton = search || 
+    selectedCategory !== 'all' || 
+    selectedSubcategory !== 'all' || 
+    selectedBrand !== 'all' || 
+    selectedProductGroup !== 'all' || 
+    inStockOnly;
 
   return (
     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -45,7 +67,7 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
       <div className="flex flex-wrap gap-2">
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Kategori" />
+            <SelectValue placeholder="Produktkategori" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -58,22 +80,68 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
             </SelectGroup>
           </SelectContent>
         </Select>
-        
-        <Select value={selectedSupplier} onValueChange={onSupplierChange}>
+
+        <Select value={selectedSubcategory} onValueChange={onSubcategoryChange}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Leverantör" />
+            <SelectValue placeholder="Underkategori" />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              <SelectItem value="all">Alla leverantörer</SelectItem>
-              {suppliers.map(supplier => (
-                <SelectItem key={supplier} value={supplier}>
-                  {supplier}
+              <SelectItem value="all">Alla underkategorier</SelectItem>
+              {subcategories.map(subcategory => (
+                <SelectItem key={subcategory} value={subcategory}>
+                  {subcategory}
                 </SelectItem>
               ))}
             </SelectGroup>
           </SelectContent>
         </Select>
+        
+        <Select value={selectedBrand} onValueChange={onBrandChange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Varumärke" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">Alla varumärken</SelectItem>
+              {brands.map(brand => (
+                <SelectItem key={brand} value={brand}>
+                  {brand}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedProductGroup} onValueChange={onProductGroupChange}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Produktgrupp" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">Alla produktgrupper</SelectItem>
+              {productGroups.map(group => (
+                <SelectItem key={group} value={group}>
+                  {group}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-2">
+          <Checkbox 
+            id="inStock"
+            checked={inStockOnly}
+            onCheckedChange={onInStockChange}
+          />
+          <label
+            htmlFor="inStock"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I lager
+          </label>
+        </div>
         
         {showResetButton && (
           <Button 

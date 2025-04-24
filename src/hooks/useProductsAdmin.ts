@@ -10,12 +10,15 @@ export const useProductsAdmin = () => {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [suppliers, setSuppliers] = useState<string[]>([]);
-  const [selectedSupplier, setSelectedSupplier] = useState<string>('all');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('all');
+  const [selectedBrand, setSelectedBrand] = useState<string>('all');
+  const [selectedProductGroup, setSelectedProductGroup] = useState<string>('all');
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [productGroups, setProductGroups] = useState<string[]>([]);
   const [groupedView, setGroupedView] = useState(true);
 
   useEffect(() => {
@@ -40,26 +43,39 @@ export const useProductsAdmin = () => {
           
         if (productsError) throw productsError;
         
-        setProducts(standaloneProducts || []);
-        setFilteredProducts(standaloneProducts || []);
-        
         const allProducts = [
           ...(standaloneProducts || []),
           ...masterProducts?.flatMap(mp => mp.products) || []
         ];
         
+        setProducts(allProducts);
+        setFilteredProducts(allProducts);
+
+        // Extract unique values for filters
         const uniqueCategories = Array.from(new Set(
           allProducts.map(product => product.category || 'Okategoriserad')
             .filter(Boolean)
         )).sort();
         
-        const uniqueSuppliers = Array.from(new Set(
-          allProducts.map(product => product.supplier || 'Okänd')
+        const uniqueSubcategories = Array.from(new Set(
+          allProducts.map(product => product.variant_type || 'Övrigt')
             .filter(Boolean)
         )).sort();
         
-        setCategories(uniqueCategories as string[]);
-        setSuppliers(uniqueSuppliers as string[]);
+        const uniqueBrands = Array.from(new Set(
+          allProducts.map(product => product.supplier || 'Okänd')
+            .filter(Boolean)
+        )).sort();
+
+        const uniqueProductGroups = Array.from(new Set(
+          allProducts.map(product => product.variant_name || 'Övrigt')
+            .filter(Boolean)
+        )).sort();
+        
+        setCategories(uniqueCategories);
+        setSubcategories(uniqueSubcategories);
+        setBrands(uniqueBrands);
+        setProductGroups(uniqueProductGroups);
         
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -89,47 +105,48 @@ export const useProductsAdmin = () => {
       );
     }
     
-    if (selectedSupplier && selectedSupplier !== 'all') {
+    if (selectedSubcategory && selectedSubcategory !== 'all') {
       result = result.filter(product => 
-        product.supplier === selectedSupplier
+        product.variant_type === selectedSubcategory
       );
     }
     
-    result.sort((a, b) => {
-      let comparison = 0;
-      
-      switch(sortBy) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'article_number':
-          comparison = a.article_number.localeCompare(b.article_number);
-          break;
-        case 'price':
-          comparison = a.price - b.price;
-          break;
-        case 'stock':
-          comparison = a.stock_status - b.stock_status;
-          break;
-        case 'category':
-          comparison = (a.category || '').localeCompare(b.category || '');
-          break;
-        default:
-          comparison = 0;
-      }
-      
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
+    if (selectedBrand && selectedBrand !== 'all') {
+      result = result.filter(product => 
+        product.supplier === selectedBrand
+      );
+    }
+
+    if (selectedProductGroup && selectedProductGroup !== 'all') {
+      result = result.filter(product => 
+        product.variant_name === selectedProductGroup
+      );
+    }
+
+    if (inStockOnly) {
+      result = result.filter(product => 
+        product.stock_status > 0
+      );
+    }
     
     setFilteredProducts(result);
-  }, [products, search, sortBy, sortDirection, selectedCategory, selectedSupplier]);
+  }, [
+    products, 
+    search, 
+    selectedCategory, 
+    selectedSubcategory,
+    selectedBrand,
+    selectedProductGroup,
+    inStockOnly
+  ]);
 
   const resetFilters = () => {
     setSearch('');
     setSelectedCategory('all');
-    setSelectedSupplier('all');
-    setSortBy('name');
-    setSortDirection('asc');
+    setSelectedSubcategory('all');
+    setSelectedBrand('all');
+    setSelectedProductGroup('all');
+    setInStockOnly(false);
   };
 
   return {
@@ -138,16 +155,20 @@ export const useProductsAdmin = () => {
     isLoading,
     search,
     setSearch,
-    sortBy,
-    setSortBy,
-    sortDirection,
-    setSortDirection,
-    categories,
     selectedCategory,
     setSelectedCategory,
-    suppliers,
-    selectedSupplier,
-    setSelectedSupplier,
+    selectedSubcategory,
+    setSelectedSubcategory,
+    selectedBrand,
+    setSelectedBrand,
+    selectedProductGroup,
+    setSelectedProductGroup,
+    inStockOnly,
+    setInStockOnly,
+    categories,
+    subcategories,
+    brands,
+    productGroups,
     groupedView,
     setGroupedView,
     resetFilters
