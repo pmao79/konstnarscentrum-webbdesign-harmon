@@ -6,7 +6,7 @@ import { validateProducts } from '@/utils/importValidation';
 import { mapProductData } from '@/utils/productMapping';
 import { saveImportLog, saveMasterProduct, saveProductVariants } from '@/services/importService';
 import { useImportProgress } from '@/hooks/useImportProgress';
-import type { ColumnMappingType } from '@/types/importing';
+import type { ColumnMappingType, ImportProgress } from '@/types/importing';
 import { COLUMN_MAPPINGS } from '@/types/importing';
 
 export const useProductImport = () => {
