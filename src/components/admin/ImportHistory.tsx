@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from 'date-fns';
 import { sv } from 'date-fns/locale';
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 interface ImportLog {
   id: string;
@@ -20,26 +22,28 @@ interface ImportLog {
 const ImportHistory = () => {
   const [logs, setLogs] = useState<ImportLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchImportLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('import_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(20);
+          
+      if (error) throw error;
+      
+      setLogs(data || []);
+    } catch (error) {
+      console.error('Error fetching import logs:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchImportLogs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('import_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-          
-        if (error) throw error;
-        
-        setLogs(data || []);
-      } catch (error) {
-        console.error('Error fetching import logs:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchImportLogs();
     
     // Set up real-time subscription for new imports
@@ -62,6 +66,11 @@ const ImportHistory = () => {
     };
   }, []);
 
+  const refreshLogs = () => {
+    setIsRefreshing(true);
+    fetchImportLogs();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -76,46 +85,61 @@ const ImportHistory = () => {
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-background">
-      <h2 className="text-xl font-serif mb-4">Importhistorik</h2>
-      
-      {isLoading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl font-serif">Importhistorik</CardTitle>
+          <Button size="sm" variant="outline" onClick={refreshLogs} disabled={isRefreshing}>
+            {isRefreshing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-1" />
+            )}
+            Uppdatera
+          </Button>
         </div>
-      ) : logs.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-left">Datum</th>
-                <th className="px-4 py-2 text-left">Filnamn</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-right">Antal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id} className="border-t">
-                  <td className="px-4 py-2">
-                    {format(new Date(log.created_at), 'PPP', { locale: sv })}
-                  </td>
-                  <td className="px-4 py-2 font-medium">{log.file_name}</td>
-                  <td className="px-4 py-2">{getStatusBadge(log.import_status)}</td>
-                  <td className="px-4 py-2 text-right">
-                    {log.products_added} produkter
-                  </td>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : logs.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 text-left">Datum</th>
+                  <th className="px-4 py-2 text-left">Filnamn</th>
+                  <th className="px-4 py-2 text-left">Leverantör</th>
+                  <th className="px-4 py-2 text-left">Status</th>
+                  <th className="px-4 py-2 text-right">Antal</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-center py-8 text-muted-foreground">
-          Ingen importhistorik tillgänglig
-        </p>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id} className="border-t">
+                    <td className="px-4 py-2">
+                      {format(new Date(log.created_at), 'PPP HH:mm', { locale: sv })}
+                    </td>
+                    <td className="px-4 py-2 font-medium">{log.file_name}</td>
+                    <td className="px-4 py-2">{log.supplier || '-'}</td>
+                    <td className="px-4 py-2">{getStatusBadge(log.import_status)}</td>
+                    <td className="px-4 py-2 text-right">
+                      {log.products_added + log.products_updated} produkter
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-center py-8 text-muted-foreground">
+            Ingen importhistorik tillgänglig
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

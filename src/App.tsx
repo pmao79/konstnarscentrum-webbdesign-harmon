@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,9 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/admin/Dashboard";
+import AdminProducts from "./pages/admin/Products";
+import AdminImports from "./pages/admin/Imports";
+import AdminCategories from "./pages/admin/Categories";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +28,9 @@ const App = () => (
           <Route path="/om-oss" element={<About />} />
           <Route path="/kontakt" element={<Contact />} />
           <Route path="/admin" element={<Dashboard />} />
+          <Route path="/admin/products" element={<AdminProducts />} />
+          <Route path="/admin/imports" element={<AdminImports />} />
+          <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

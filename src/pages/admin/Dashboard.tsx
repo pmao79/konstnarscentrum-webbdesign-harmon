@@ -1,14 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
-import {
-  SidebarProvider,
-  SidebarInset
-} from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { supabase } from "@/integrations/supabase/client";
 import ProductImporter from '@/components/admin/ProductImporter';
 import ImportHistory from '@/components/admin/ImportHistory';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from '@/components/ui/card';
 
 interface ProductStats {
   totalCount: number;
@@ -59,7 +57,7 @@ const Dashboard = () => {
 
   return (
     <SidebarProvider defaultOpen>
-      <div className="flex min-h-screen bg-muted/10">
+      <div className="flex min-h-screen w-full bg-muted/10">
         {/* Admin Sidebar */}
         <AdminSidebar />
         
@@ -72,25 +70,25 @@ const Dashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3 mb-8">
-              <div className="p-6 bg-background rounded-lg border shadow-sm">
+              <Card className="p-6">
                 <h3 className="font-medium mb-1">Produkter</h3>
                 <p className="text-3xl font-bold">{isLoading ? '...' : productStats.totalCount}</p>
                 <p className="text-sm text-muted-foreground">Totalt antal produkter</p>
-              </div>
+              </Card>
               
-              <div className="p-6 bg-background rounded-lg border shadow-sm">
+              <Card className="p-6">
                 <h3 className="font-medium mb-1">Kategorier</h3>
                 <p className="text-3xl font-bold">
                   {isLoading ? '...' : Object.keys(productStats.categories).length}
                 </p>
                 <p className="text-sm text-muted-foreground">Produktkategorier</p>
-              </div>
+              </Card>
               
-              <div className="p-6 bg-background rounded-lg border shadow-sm">
+              <Card className="p-6">
                 <h3 className="font-medium mb-1">Ordrar</h3>
                 <p className="text-3xl font-bold">0</p>
                 <p className="text-sm text-muted-foreground">Nya ordrar</p>
-              </div>
+              </Card>
             </div>
 
             <Tabs defaultValue="import" className="mb-8">

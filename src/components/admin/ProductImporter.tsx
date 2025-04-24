@@ -4,18 +4,86 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from 'xlsx';
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { formatDistanceToNow } from 'date-fns';
+import { sv } from 'date-fns/locale';
+
+interface ImportProgress {
+  total: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  validationErrors: Array<{row: number; field: string; message: string}>;
+}
 
 const ProductImporter = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [lastSuccessfulImport, setLastSuccessfulImport] = useState<{date: string, count: number} | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Fetch the most recent successful import
+    const getLastImport = async () => {
+      const { data, error } = await supabase
+        .from('import_logs')
+        .select('created_at, products_added')
+        .eq('import_status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        setLastSuccessfulImport({
+          date: data[0].created_at,
+          count: data[0].products_added
+        });
+      }
+    };
+    
+    getLastImport();
+  }, []);
+
+  const validateProducts = (products: any[]) => {
+    const errors: Array<{row: number; field: string; message: string}> = [];
+    
+    products.forEach((product, index) => {
+      // Check required fields
+      if (!product['Artikelnummer']) {
+        errors.push({row: index + 2, field: 'Artikelnummer', message: 'Artikelnummer måste anges'});
+      }
+      
+      if (!product['Produktnamn']) {
+        errors.push({row: index + 2, field: 'Produktnamn', message: 'Produktnamn måste anges'});
+      }
+      
+      // Validate price is a number
+      if (isNaN(parseFloat(product['Pris (SEK)']))) {
+        errors.push({row: index + 2, field: 'Pris (SEK)', message: 'Pris måste vara ett numeriskt värde'});
+      }
+      
+      // Validate stock status is a number
+      if (isNaN(parseInt(product['Lagerstatus']))) {
+        errors.push({row: index + 2, field: 'Lagerstatus', message: 'Lagerstatus måste vara ett heltal'});
+      }
+      
+      // Validate image URL format (simple check for now)
+      if (product['Bild-URL'] && !product['Bild-URL'].startsWith('http')) {
+        errors.push({row: index + 2, field: 'Bild-URL', message: 'Bild-URL måste vara en giltig URL'});
+      }
+    });
+    
+    return errors;
+  };
 
   const processExcelFile = async (file: File) => {
     try {
       setIsLoading(true);
       setUploadProgress(10);
+      setImportProgress(null);
+      
       const reader = new FileReader();
       
       reader.onload = async (e) => {
@@ -26,13 +94,38 @@ const ProductImporter = () => {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const products = XLSX.utils.sheet_to_json(firstSheet);
           
-          setUploadProgress(50);
+          setUploadProgress(40);
           
           if (!products || products.length === 0) {
             throw new Error("Inga produkter hittades i filen");
           }
           
+          // Validate products
+          const validationErrors = validateProducts(products);
+          const progressData: ImportProgress = {
+            total: products.length,
+            processed: 0,
+            successful: 0,
+            failed: 0,
+            validationErrors
+          };
+          
+          setImportProgress(progressData);
+          
+          if (validationErrors.length > 0) {
+            setUploadProgress(100);
+            toast({
+              title: "Valideringsfel",
+              description: `${validationErrors.length} fel hittades i importen. Se detaljer nedan.`,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+          
           console.log(`Processar ${products.length} produkter från Excel`, products[0]);
+          
+          setUploadProgress(50);
           
           // Prepare for import log
           const importLog = {
@@ -66,7 +159,7 @@ const ProductImporter = () => {
                 stock_status: parseInt(product['Lagerstatus']),
                 image_url: product['Bild-URL'],
                 category: product['Kategori'],
-                supplier: 'excel-import' // Default supplier tag
+                supplier: product['Leverantör'] || 'excel-import'
               })),
               { onConflict: 'article_number' }
             );
@@ -86,6 +179,12 @@ const ProductImporter = () => {
             .eq('id', logData.id);
             
           if (updateLogError) throw updateLogError;
+
+          // Update last successful import
+          setLastSuccessfulImport({
+            date: new Date().toISOString(),
+            count: products.length
+          });
 
           setUploadProgress(100);
           setSelectedFile(null);
@@ -132,61 +231,116 @@ const ProductImporter = () => {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      
+      // Reset any previous validation errors
+      setImportProgress(null);
     }
   };
 
   return (
-    <div className="p-4 border rounded-lg bg-background">
-      <h2 className="text-xl font-serif mb-4">Importera produkter</h2>
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-4">
-          <Button
-            disabled={isLoading}
-            onClick={() => document.getElementById('file-upload')?.click()}
-          >
-            {isLoading ? 'Väljer fil...' : 'Välj Excel-fil'}
-          </Button>
-          <input
-            id="file-upload"
-            type="file"
-            accept=".xlsx,.xls"
-            className="hidden"
-            onChange={handleFileUpload}
-          />
-          <p className="text-sm text-muted-foreground">
-            Stödjer Excel-filer (.xlsx, .xls)
-          </p>
-        </div>
-        
-        {selectedFile && !isLoading && (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-xl font-serif">Importera produkter</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
-            <p className="text-sm">Vald fil: <span className="font-medium">{selectedFile.name}</span></p>
-            <Button 
-              onClick={() => processExcelFile(selectedFile)}
+            <Button
               disabled={isLoading}
+              onClick={() => document.getElementById('file-upload')?.click()}
             >
-              Importera nu
+              {isLoading ? 'Väljer fil...' : 'Välj Excel-fil'}
             </Button>
+            <input
+              id="file-upload"
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <p className="text-sm text-muted-foreground">
+              Stödjer Excel-filer (.xlsx, .xls)
+            </p>
           </div>
-        )}
-        
-        {isLoading && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <p className="text-sm font-medium">Importerar produkter...</p>
+          
+          {lastSuccessfulImport && !isLoading && !selectedFile && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <span>
+                Senaste import: {formatDistanceToNow(new Date(lastSuccessfulImport.date), { addSuffix: true, locale: sv })} 
+                ({lastSuccessfulImport.count} produkter)
+              </span>
             </div>
-            <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-primary transition-all duration-300 ease-in-out"
-                style={{ width: `${uploadProgress}%` }}
-              />
+          )}
+          
+          {selectedFile && !isLoading && (
+            <div className="flex items-center gap-4">
+              <p className="text-sm">Vald fil: <span className="font-medium">{selectedFile.name}</span></p>
+              <Button 
+                onClick={() => processExcelFile(selectedFile)}
+                disabled={isLoading}
+              >
+                Importera nu
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
+          )}
+          
+          {isLoading && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <p className="text-sm font-medium">Importerar produkter...</p>
+              </div>
+              <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-primary transition-all duration-300 ease-in-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-right">{uploadProgress}%</p>
+            </div>
+          )}
+          
+          {importProgress && importProgress.validationErrors.length > 0 && (
+            <div className="mt-4 border rounded-md p-4 bg-destructive/10">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <h3 className="font-medium">Valideringsfel</h3>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {importProgress.validationErrors.slice(0, 5).map((error, idx) => (
+                  <li key={idx} className="text-muted-foreground">
+                    Rad {error.row}: {error.field} - {error.message}
+                  </li>
+                ))}
+                {importProgress.validationErrors.length > 5 && (
+                  <li className="text-muted-foreground">
+                    ...och {importProgress.validationErrors.length - 5} till
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+          
+          <div className="border-t pt-4 text-sm">
+            <h4 className="font-medium mb-2">Importformat</h4>
+            <p className="text-muted-foreground mb-2">
+              Excelfilens första rad måste innehålla följande kolumner:
+            </p>
+            <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+              <li>Artikelnummer (obligatorisk)</li>
+              <li>Produktnamn (obligatorisk)</li>
+              <li>Beskrivning</li>
+              <li>Pris (SEK) (obligatorisk)</li>
+              <li>Lagerstatus</li>
+              <li>Kategori</li>
+              <li>Bild-URL</li>
+              <li>Leverantör</li>
+            </ul>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

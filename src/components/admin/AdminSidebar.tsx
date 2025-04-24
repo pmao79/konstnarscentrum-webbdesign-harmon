@@ -8,9 +8,10 @@ import {
   Users, 
   FileSpreadsheet,
   BarChart,
-  Menu 
+  Menu,
+  Tag
 } from "lucide-react";
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Sidebar,
   SidebarContent,
@@ -18,17 +19,24 @@ import {
   SidebarTrigger
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const AdminSidebar = () => {
+  const location = useLocation();
   const menuItems = [
     { icon: <LayoutDashboard size={18} />, label: 'Översikt', path: '/admin' },
     { icon: <Package size={18} />, label: 'Produkter', path: '/admin/products' },
+    { icon: <Tag size={18} />, label: 'Kategorier', path: '/admin/categories' },
     { icon: <FileSpreadsheet size={18} />, label: 'Importer', path: '/admin/imports' },
     { icon: <ShoppingCart size={18} />, label: 'Ordrar', path: '/admin/orders' },
     { icon: <Users size={18} />, label: 'Kunder', path: '/admin/customers' },
     { icon: <BarChart size={18} />, label: 'Rapporter', path: '/admin/reports' },
     { icon: <Settings size={18} />, label: 'Inställningar', path: '/admin/settings' },
   ];
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
     <Sidebar>
@@ -51,7 +59,12 @@ const AdminSidebar = () => {
               <li key={item.path}>
                 <Link 
                   to={item.path} 
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    isActive(item.path) 
+                      ? "bg-primary text-primary-foreground" 
+                      : "hover:bg-accent"
+                  )}
                 >
                   {item.icon}
                   <span>{item.label}</span>
