@@ -8,6 +8,15 @@ import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
 import { sv } from 'date-fns/locale';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface ImportProgress {
   total: number;
@@ -17,12 +26,55 @@ interface ImportProgress {
   validationErrors: Array<{row: number; field: string; message: string}>;
 }
 
+// Define column mapping types
+interface ColumnMapping {
+  articleNumber: string;
+  productName: string;
+  description?: string;
+  price: string;
+  stockStatus?: string;
+  category?: string;
+  imageUrl?: string;
+  supplier?: string;
+  packaging?: string;
+  unit?: string;
+  ean?: string;
+  code?: string;
+  brand?: string;
+  misc?: string;
+}
+
+const COLUMN_MAPPINGS = {
+  swedish: {
+    articleNumber: "Artikelnummer",
+    productName: "Benämning",
+    price: "Cirkapris",
+    supplier: "Varumärke",
+    packaging: "Förp",
+    unit: "Enhet",
+    ean: "EAN",
+    code: "Kod",
+    misc: "Övrigt"
+  },
+  english: {
+    articleNumber: "Artikelnummer",
+    productName: "Produktnamn",
+    description: "Beskrivning",
+    price: "Pris (SEK)",
+    stockStatus: "Lagerstatus",
+    imageUrl: "Bild-URL",
+    category: "Kategori",
+    supplier: "Leverantör"
+  }
+} as const;
+
 const ProductImporter = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [lastSuccessfulImport, setLastSuccessfulImport] = useState<{date: string, count: number} | null>(null);
+  const [columnMapping, setColumnMapping] = useState<"swedish" | "english">("swedish");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,36 +98,60 @@ const ProductImporter = () => {
     getLastImport();
   }, []);
 
-  const validateProducts = (products: any[]) => {
+  const validateProducts = (products: any[], mapping: ColumnMapping) => {
     const errors: Array<{row: number; field: string; message: string}> = [];
     
     products.forEach((product, index) => {
       // Check required fields
-      if (!product['Artikelnummer']) {
-        errors.push({row: index + 2, field: 'Artikelnummer', message: 'Artikelnummer måste anges'});
+      if (!product[mapping.articleNumber]) {
+        errors.push({row: index + 2, field: mapping.articleNumber, message: 'Artikelnummer måste anges'});
       }
       
-      if (!product['Produktnamn']) {
-        errors.push({row: index + 2, field: 'Produktnamn', message: 'Produktnamn måste anges'});
+      if (!product[mapping.productName]) {
+        errors.push({row: index + 2, field: mapping.productName, message: 'Produktnamn måste anges'});
       }
       
       // Validate price is a number
-      if (isNaN(parseFloat(product['Pris (SEK)']))) {
-        errors.push({row: index + 2, field: 'Pris (SEK)', message: 'Pris måste vara ett numeriskt värde'});
+      if (product[mapping.price] && isNaN(parseFloat(product[mapping.price]))) {
+        errors.push({row: index + 2, field: mapping.price, message: 'Pris måste vara ett numeriskt värde'});
       }
       
-      // Validate stock status is a number
-      if (isNaN(parseInt(product['Lagerstatus']))) {
-        errors.push({row: index + 2, field: 'Lagerstatus', message: 'Lagerstatus måste vara ett heltal'});
+      // Validate stock status is a number if it exists
+      const stockStatusField = mapping.stockStatus;
+      if (stockStatusField && product[stockStatusField] && isNaN(parseInt(product[stockStatusField]))) {
+        errors.push({row: index + 2, field: stockStatusField, message: 'Lagerstatus måste vara ett heltal'});
       }
       
-      // Validate image URL format (simple check for now)
-      if (product['Bild-URL'] && !product['Bild-URL'].startsWith('http')) {
-        errors.push({row: index + 2, field: 'Bild-URL', message: 'Bild-URL måste vara en giltig URL'});
+      // Validate image URL format if it exists
+      const imageUrlField = mapping.imageUrl;
+      if (imageUrlField && product[imageUrlField] && !product[imageUrlField].startsWith('http')) {
+        errors.push({row: index + 2, field: imageUrlField, message: 'Bild-URL måste vara en giltig URL'});
       }
     });
     
     return errors;
+  };
+
+  const mapProductToDatabase = (product: any, mapping: ColumnMapping) => {
+    // Map the product from Excel format to database format
+    return {
+      article_number: product[mapping.articleNumber],
+      name: product[mapping.productName],
+      description: mapping.description ? product[mapping.description] : '',
+      price: parseFloat(product[mapping.price]) || 0,
+      stock_status: mapping.stockStatus && product[mapping.stockStatus] ? parseInt(product[mapping.stockStatus]) : 0,
+      image_url: mapping.imageUrl ? product[mapping.imageUrl] : null,
+      category: mapping.category ? product[mapping.category] : null,
+      supplier: mapping.supplier ? product[mapping.supplier] : 'excel-import',
+      // Additional fields mapped as metadata
+      metadata: {
+        packaging: mapping.packaging ? product[mapping.packaging] : null,
+        unit: mapping.unit ? product[mapping.unit] : null,
+        ean: mapping.ean ? product[mapping.ean] : null,
+        code: mapping.code ? product[mapping.code] : null,
+        misc: mapping.misc ? product[mapping.misc] : null
+      }
+    };
   };
 
   const processExcelFile = async (file: File) => {
@@ -100,8 +176,10 @@ const ProductImporter = () => {
             throw new Error("Inga produkter hittades i filen");
           }
           
+          const currentMapping = COLUMN_MAPPINGS[columnMapping];
+          
           // Validate products
-          const validationErrors = validateProducts(products);
+          const validationErrors = validateProducts(products, currentMapping);
           const progressData: ImportProgress = {
             total: products.length,
             processed: 0,
@@ -147,19 +225,25 @@ const ProductImporter = () => {
           
           setUploadProgress(70);
           
+          // Map products to database format
+          const mappedProducts = products.map(product => 
+            mapProductToDatabase(product, currentMapping)
+          );
+          
           // Start a transaction to update products
           const { data: importedData, error } = await supabase
             .from('products')
             .upsert(
-              products.map((product: any) => ({
-                article_number: product['Artikelnummer'],
-                name: product['Produktnamn'],
-                description: product['Beskrivning'],
-                price: parseFloat(product['Pris (SEK)']),
-                stock_status: parseInt(product['Lagerstatus']),
-                image_url: product['Bild-URL'],
-                category: product['Kategori'],
-                supplier: product['Leverantör'] || 'excel-import'
+              mappedProducts.map(product => ({
+                article_number: product.article_number,
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                stock_status: product.stock_status,
+                image_url: product.image_url,
+                category: product.category,
+                supplier: product.supplier
+                // Note: metadata isn't stored directly in the table currently
               })),
               { onConflict: 'article_number' }
             );
@@ -244,23 +328,43 @@ const ProductImporter = () => {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              disabled={isLoading}
-              onClick={() => document.getElementById('file-upload')?.click()}
-            >
-              {isLoading ? 'Väljer fil...' : 'Välj Excel-fil'}
-            </Button>
-            <input
-              id="file-upload"
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <p className="text-sm text-muted-foreground">
-              Stödjer Excel-filer (.xlsx, .xls)
-            </p>
+          <div className="grid gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="column-format">Välj kolumnformat</Label>
+              <Select 
+                value={columnMapping} 
+                onValueChange={(value) => setColumnMapping(value as "swedish" | "english")}
+              >
+                <SelectTrigger id="column-format" className="w-[180px]">
+                  <SelectValue placeholder="Välj format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="swedish">Svenska kolumner</SelectItem>
+                    <SelectItem value="english">Engelska kolumner</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <Button
+                disabled={isLoading}
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                {isLoading ? 'Väljer fil...' : 'Välj Excel-fil'}
+              </Button>
+              <input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <p className="text-sm text-muted-foreground">
+                Stödjer Excel-filer (.xlsx, .xls)
+              </p>
+            </div>
           </div>
           
           {lastSuccessfulImport && !isLoading && !selectedFile && (
@@ -324,19 +428,40 @@ const ProductImporter = () => {
           
           <div className="border-t pt-4 text-sm">
             <h4 className="font-medium mb-2">Importformat</h4>
-            <p className="text-muted-foreground mb-2">
-              Excelfilens första rad måste innehålla följande kolumner:
-            </p>
-            <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-              <li>Artikelnummer (obligatorisk)</li>
-              <li>Produktnamn (obligatorisk)</li>
-              <li>Beskrivning</li>
-              <li>Pris (SEK) (obligatorisk)</li>
-              <li>Lagerstatus</li>
-              <li>Kategori</li>
-              <li>Bild-URL</li>
-              <li>Leverantör</li>
-            </ul>
+            {columnMapping === "swedish" ? (
+              <>
+                <p className="text-muted-foreground mb-2">
+                  Excelfilens första rad måste innehålla följande kolumner:
+                </p>
+                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                  <li>Artikelnummer (obligatorisk)</li>
+                  <li>Benämning (obligatorisk)</li>
+                  <li>Cirkapris (obligatorisk)</li>
+                  <li>Varumärke</li>
+                  <li>Förp</li>
+                  <li>Enhet</li>
+                  <li>EAN</li>
+                  <li>Kod</li>
+                  <li>Övrigt</li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground mb-2">
+                  Excelfilens första rad måste innehålla följande kolumner:
+                </p>
+                <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                  <li>Artikelnummer (obligatorisk)</li>
+                  <li>Produktnamn (obligatorisk)</li>
+                  <li>Beskrivning</li>
+                  <li>Pris (SEK) (obligatorisk)</li>
+                  <li>Lagerstatus</li>
+                  <li>Kategori</li>
+                  <li>Bild-URL</li>
+                  <li>Leverantör</li>
+                </ul>
+              </>
+            )}
           </div>
         </div>
       </CardContent>
