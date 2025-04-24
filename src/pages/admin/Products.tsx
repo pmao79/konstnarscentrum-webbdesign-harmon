@@ -3,30 +3,12 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash,
-  ArrowUpDown,
-  ArrowDown,
-  ArrowUp,
-  Loader2
-} from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
 import { Database } from "@/integrations/supabase/types";
-import { Badge } from '@/components/ui/badge';
-import { 
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { Button } from '@/components/ui/button';
+import ProductsTable from '@/components/admin/products/ProductsTable';
+import ProductFilters from '@/components/admin/products/ProductFilters';
+import ProductStats from '@/components/admin/products/ProductStats';
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 
@@ -43,7 +25,6 @@ const AdminProducts = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<string>('all');
   const [groupedView, setGroupedView] = useState(true);
 
-  // Modify fetchProducts to include master product information
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -69,7 +50,6 @@ const AdminProducts = () => {
         setProducts(standaloneProducts || []);
         setFilteredProducts(standaloneProducts || []);
         
-        // Extract unique categories and suppliers
         const allProducts = [
           ...(standaloneProducts || []),
           ...masterProducts?.flatMap(mp => mp.products) || []
@@ -98,11 +78,9 @@ const AdminProducts = () => {
     fetchProducts();
   }, []);
 
-  // Apply filters and sorting
   useEffect(() => {
     let result = [...products];
     
-    // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase();
       result = result.filter(product => 
@@ -112,21 +90,18 @@ const AdminProducts = () => {
       );
     }
     
-    // Apply category filter
     if (selectedCategory && selectedCategory !== 'all') {
       result = result.filter(product => 
         product.category === selectedCategory
       );
     }
     
-    // Apply supplier filter
     if (selectedSupplier && selectedSupplier !== 'all') {
       result = result.filter(product => 
         product.supplier === selectedSupplier
       );
     }
     
-    // Apply sorting
     result.sort((a, b) => {
       let comparison = 0;
       
@@ -156,20 +131,6 @@ const AdminProducts = () => {
     setFilteredProducts(result);
   }, [products, search, sortBy, sortDirection, selectedCategory, selectedSupplier]);
   
-  const handleSortChange = (column: string) => {
-    if (sortBy === column) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(column);
-      setSortDirection('asc');
-    }
-  };
-  
-  const getSortIcon = (column: string) => {
-    if (sortBy !== column) return <ArrowUpDown size={16} />;
-    return sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />;
-  };
-  
   const resetFilters = () => {
     setSearch('');
     setSelectedCategory('all');
@@ -192,86 +153,30 @@ const AdminProducts = () => {
             
             <Card className="mb-6">
               <CardContent className="p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-1 items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Sök produkter..." 
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      className="max-w-sm"
-                    />
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Kategori" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="all">Alla kategorier</SelectItem>
-                          {categories.map(category => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Leverantör" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="all">Alla leverantörer</SelectItem>
-                          {suppliers.map(supplier => (
-                            <SelectItem key={supplier} value={supplier}>
-                              {supplier}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    
-                    {(search || selectedCategory !== 'all' || selectedSupplier !== 'all') && (
-                      <Button 
-                        variant="ghost" 
-                        onClick={resetFilters}
-                      >
-                        Återställ filter
-                      </Button>
-                    )}
-                  </div>
-                  
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" /> 
-                    Lägg till produkt
-                  </Button>
-                </div>
+                <ProductFilters 
+                  search={search}
+                  onSearchChange={setSearch}
+                  selectedCategory={selectedCategory}
+                  onCategoryChange={setSelectedCategory}
+                  selectedSupplier={selectedSupplier}
+                  onSupplierChange={setSelectedSupplier}
+                  categories={categories}
+                  suppliers={suppliers}
+                  onResetFilters={resetFilters}
+                />
               </CardContent>
             </Card>
             
-            <div className="mb-4">
-              <Button
-                variant="outline"
-                onClick={() => setGroupedView(!groupedView)}
-              >
-                {groupedView ? 'Visa alla produkter' : 'Visa grupperade produkter'}
-              </Button>
-            </div>
+            <ProductStats 
+              filteredCount={filteredProducts.length}
+              totalCount={products.length}
+              groupedView={groupedView}
+              onToggleView={() => setGroupedView(!groupedView)}
+            />
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl">
-                  Produktlista {filteredProducts.length > 0 && 
-                    <span className="text-sm font-normal text-muted-foreground ml-2">
-                      ({filteredProducts.length} av {products.length})
-                    </span>
-                  }
-                </CardTitle>
+                <CardTitle className="text-xl">Produktlista</CardTitle>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -279,75 +184,7 @@ const AdminProducts = () => {
                     <Loader2 className="h-8 w-8 animate-spin" />
                   </div>
                 ) : filteredProducts.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Artikelnr</TableHead>
-                          <TableHead>Namn</TableHead>
-                          <TableHead>Kategori</TableHead>
-                          <TableHead className="text-right">Pris</TableHead>
-                          <TableHead className="text-right">Lager</TableHead>
-                          <TableHead className="text-center">Åtgärder</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredProducts.map((product) => (
-                          <TableRow key={product.id} className="group">
-                            <TableCell className="font-mono">{product.article_number}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                {product.image_url && (
-                                  <img 
-                                    src={product.image_url} 
-                                    alt={product.name} 
-                                    className="h-8 w-8 rounded object-cover"
-                                  />
-                                )}
-                                <div>
-                                  <div className="font-medium">{product.name}</div>
-                                  {product.variant_name && (
-                                    <div className="text-sm text-muted-foreground">
-                                      Variant: {product.variant_name}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {product.category ? (
-                                <Badge variant="outline">{product.category}</Badge>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">
-                                  Okategoriserad
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">{product.price} kr</TableCell>
-                            <TableCell className="text-right">
-                              <Badge 
-                                variant={product.stock_status > 10 ? "default" : 
-                                        product.stock_status > 0 ? "outline" : 
-                                        "destructive"}
-                              >
-                                {product.stock_status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex justify-center gap-2">
-                                <Button size="icon" variant="ghost">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button size="icon" variant="ghost">
-                                  <Trash className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <ProductsTable products={filteredProducts} />
                 ) : (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <p>Inga produkter matchade filtret</p>
