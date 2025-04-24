@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Slider } from "@/components/ui/slider";
@@ -29,11 +29,20 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
     filters.priceRange?.min || 0, 
     filters.priceRange?.max || 2000
   ]);
+  
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     price: true,
     brands: true
   });
+
+  // Update local price range when filters prop changes (e.g. on reset)
+  useEffect(() => {
+    setPriceRange([
+      filters.priceRange?.min || 0,
+      filters.priceRange?.max || 2000
+    ]);
+  }, [filters.priceRange]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -78,9 +87,10 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
     });
   };
 
-  // List of available brands (hardcoded for now, could be fetched from backend)
+  // List of available brands pulled from our product data
+  // These match the supplier field in the products table
   const availableBrands = [
-    "Winsor & Newton", 
+    "Winsor & Newton - Konstnärsmaterial",
     "Schmincke", 
     "Daniel Smith", 
     "Golden", 

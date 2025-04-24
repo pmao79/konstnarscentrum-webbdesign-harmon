@@ -18,6 +18,11 @@ const ProductSearch = ({ searchQuery, onSearch, placeholder = "Sök produkter...
     onSearch(value);
   }, 300);
   
+  // Update local state when prop changes (e.g. when filters are reset)
+  useEffect(() => {
+    setLocalQuery(searchQuery);
+  }, [searchQuery]);
+  
   useEffect(() => {
     return () => {
       debouncedSearch.cancel();

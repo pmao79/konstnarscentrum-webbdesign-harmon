@@ -16,6 +16,7 @@ interface ProductCardProps {
     image_url: string | null;
     stock_status: number;
     article_number: string;
+    supplier: string | null;
     master_product?: any;
   };
 }
@@ -34,9 +35,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   };
   
   const isNewProduct = () => {
-    // Example logic: if the product was added in the last 30 days
-    // This is just a placeholder, you'd need to implement based on your data structure
-    return Math.random() > 0.7; // Just for demo purposes
+    // Consider a product new if it was added within the last 30 days
+    if (product.created_at) {
+      const productDate = new Date(product.created_at);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return productDate > thirtyDaysAgo;
+    }
+    return false;
   };
   
   const getStockStatusText = () => {
@@ -50,6 +56,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     if (product.stock_status < 5) return "text-amber-500";
     return "text-green-600";
   };
+
+  // Extract brand/supplier name for display
+  const displaySupplier = product.supplier ? 
+    product.supplier.replace(' - Konstnärsmaterial', '') : 
+    product.category || "Övrigt";
   
   return (
     <Link to={`/produkter/${product.id}`}>
@@ -68,7 +79,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         </div>
         <CardContent className="p-4">
           <div className="flex justify-between">
-            <span className="text-xs text-primary font-medium">{product.category || "Övrigt"}</span>
+            <span className="text-xs text-primary font-medium">{displaySupplier}</span>
             <div className="flex items-center">
               <span className={`text-xs ${getStockStatusColor()}`}>
                 {getStockStatusText()}

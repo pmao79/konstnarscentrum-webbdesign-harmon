@@ -10,12 +10,13 @@ import ProductGrid from '@/components/shop/ProductGrid';
 import { useProducts, FilterOptions } from '@/hooks/useProducts';
 import { useToast } from "@/hooks/use-toast";
 
+// Based on existing product categories in the database
 const categories = [
   { name: "Färg", subcategories: ["Akvarell", "Akryl", "Olja", "Gouache"] },
   { name: "Penslar", subcategories: ["Akvarellpenslar", "Akrylpenslar", "Oljepenslar"] },
   { name: "Papper", subcategories: ["Akvarellpapper", "Skissblock", "Canvas"] },
   { name: "Stafflier", subcategories: ["Bordsställ", "Golvstaffli", "Fältstaffli"] },
-  { name: "Böcker", subcategories: ["Teknikböcker", "Inspiration"] },
+  { name: "Winsor & Newton", subcategories: ["Färger", "Penslar", "Tillbehör"] },
 ];
 
 const Products = () => {
@@ -40,6 +41,20 @@ const Products = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const { data: productData, isLoading, error } = useProducts(filters);
 
+  // Display data in console for debugging
+  useEffect(() => {
+    if (productData) {
+      console.log("Product data fetched:", { 
+        count: productData.count, 
+        dataLength: productData.data?.length,
+        filters
+      });
+    }
+    if (error) {
+      console.error("Error fetching products:", error);
+    }
+  }, [productData, error, filters]);
+
   // Update URL params when filters change
   useEffect(() => {
     const params = new URLSearchParams();
@@ -58,6 +73,7 @@ const Products = () => {
   }, [filters, setSearchParams]);
 
   const handleSearch = (searchQuery: string) => {
+    console.log("Search query:", searchQuery);
     setFilters(prev => ({
       ...prev,
       search: searchQuery,
@@ -66,6 +82,7 @@ const Products = () => {
   };
 
   const handleSortChange = (sortValue: string) => {
+    console.log("Sort changed:", sortValue);
     setFilters(prev => ({
       ...prev,
       sortBy: sortValue,
@@ -74,6 +91,7 @@ const Products = () => {
   };
 
   const handleFilterChange = (newFilters: FilterOptions) => {
+    console.log("Filters changed:", newFilters);
     setFilters(prev => ({
       ...prev,
       ...newFilters,
@@ -99,6 +117,7 @@ const Products = () => {
   };
 
   const clearFilters = () => {
+    console.log("Clearing all filters");
     setFilters({
       sortBy: 'relevans',
       page: 1,

@@ -34,6 +34,8 @@ export const useProducts = (filters: FilterOptions = {}) => {
   return useQuery({
     queryKey: ['products', filters],
     queryFn: async () => {
+      console.log("Fetching products with filters:", filters);
+      
       // First query to get the total count
       let countQuery = supabase
         .from('products')
@@ -49,39 +51,43 @@ export const useProducts = (filters: FilterOptions = {}) => {
 
       // Apply filters to both queries
       if (category) {
+        console.log("Filtering by category:", category);
         countQuery = countQuery.eq('category', category);
         query = query.eq('category', category);
       }
 
       if (subcategory) {
-        // Assuming subcategory is stored somehow, adjust as needed
-        countQuery = countQuery.ilike('description', `%${subcategory}%`);
-        query = query.ilike('description', `%${subcategory}%`);
+        console.log("Filtering by subcategory:", subcategory);
+        // Check if we should look in name or description for subcategory
+        const subcategoryFilter = `%${subcategory}%`;
+        countQuery = countQuery.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
+        query = query.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
       }
 
       if (brand) {
+        console.log("Filtering by brand/supplier:", brand);
         countQuery = countQuery.eq('supplier', brand);
         query = query.eq('supplier', brand);
       }
 
       if (priceRange?.min !== undefined) {
+        console.log("Filtering by min price:", priceRange.min);
         countQuery = countQuery.gte('price', priceRange.min);
         query = query.gte('price', priceRange.min);
       }
 
       if (priceRange?.max !== undefined) {
+        console.log("Filtering by max price:", priceRange.max);
         countQuery = countQuery.lte('price', priceRange.max);
         query = query.lte('price', priceRange.max);
       }
 
       if (search) {
+        console.log("Searching for:", search);
         const searchTerm = `%${search}%`;
-        countQuery = countQuery.or(
-          `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm}`
-        );
-        query = query.or(
-          `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm}`
-        );
+        const searchFilter = `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm},supplier.ilike.${searchTerm}`;
+        countQuery = countQuery.or(searchFilter);
+        query = query.or(searchFilter);
       }
 
       // Apply sorting
@@ -96,7 +102,7 @@ export const useProducts = (filters: FilterOptions = {}) => {
           query = query.order('created_at', { ascending: false });
           break;
         case 'popularitet':
-          // Assuming there's a popularity or sales_count field, adjust as needed
+          // Fallback to stock_status as a proxy for popularity
           query = query.order('stock_status', { ascending: false });
           break;
         case 'namn_asc':
@@ -120,6 +126,7 @@ export const useProducts = (filters: FilterOptions = {}) => {
       // Apply pagination to the main query only
       query = query.range(offset, offset + limit - 1);
 
+      console.log("Executing queries...");
       // Execute both queries
       const [countResult, dataResult] = await Promise.all([
         countQuery,
@@ -127,12 +134,19 @@ export const useProducts = (filters: FilterOptions = {}) => {
       ]);
 
       if (countResult.error) {
+        console.error("Count query error:", countResult.error);
         throw countResult.error;
       }
 
       if (dataResult.error) {
+        console.error("Data query error:", dataResult.error);
         throw dataResult.error;
       }
+
+      console.log("Query results:", {
+        count: countResult.count,
+        dataLength: dataResult.data?.length
+      });
 
       return {
         data: dataResult.data,
