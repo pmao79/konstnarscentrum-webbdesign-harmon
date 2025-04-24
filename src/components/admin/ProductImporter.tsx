@@ -380,7 +380,7 @@ const ProductImporter = () => {
               toast({
                 title: "Import delvis slutförd",
                 description: `${successCount} produkter har importerats framgångsrikt. ${failedCount} produkter kunde inte importeras.`,
-                variant: "warning",
+                variant: "destructive",
               });
             } else {
               toast({
