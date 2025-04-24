@@ -38,9 +38,9 @@ const AdminProducts = () => {
   const [sortBy, setSortBy] = useState('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [suppliers, setSuppliers] = useState<string[]>([]);
-  const [selectedSupplier, setSelectedSupplier] = useState<string>('');
+  const [selectedSupplier, setSelectedSupplier] = useState<string>('all');
 
   // Fetch products from Supabase
   useEffect(() => {
@@ -96,14 +96,14 @@ const AdminProducts = () => {
     }
     
     // Apply category filter
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== 'all') {
       result = result.filter(product => 
         product.category === selectedCategory
       );
     }
     
     // Apply supplier filter
-    if (selectedSupplier) {
+    if (selectedSupplier && selectedSupplier !== 'all') {
       result = result.filter(product => 
         product.supplier === selectedSupplier
       );
@@ -155,8 +155,8 @@ const AdminProducts = () => {
   
   const resetFilters = () => {
     setSearch('');
-    setSelectedCategory('');
-    setSelectedSupplier('');
+    setSelectedCategory('all');
+    setSelectedSupplier('all');
     setSortBy('name');
     setSortDirection('asc');
   };
@@ -193,7 +193,7 @@ const AdminProducts = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="">Alla kategorier</SelectItem>
+                          <SelectItem value="all">Alla kategorier</SelectItem>
                           {categories.map(category => (
                             <SelectItem key={category} value={category}>
                               {category}
@@ -209,7 +209,7 @@ const AdminProducts = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="">Alla leverantörer</SelectItem>
+                          <SelectItem value="all">Alla leverantörer</SelectItem>
                           {suppliers.map(supplier => (
                             <SelectItem key={supplier} value={supplier}>
                               {supplier}
@@ -219,7 +219,7 @@ const AdminProducts = () => {
                       </SelectContent>
                     </Select>
                     
-                    {(search || selectedCategory || selectedSupplier) && (
+                    {(search || selectedCategory !== 'all' || selectedSupplier !== 'all') && (
                       <Button 
                         variant="ghost" 
                         onClick={resetFilters}
