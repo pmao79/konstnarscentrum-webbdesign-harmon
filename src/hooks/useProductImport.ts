@@ -4,7 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { processExcelFile, validateProducts } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
-import type { ImportProgress, ColumnMappingType } from '@/types/importing';
+import type { ImportProgress, ColumnMappingType, COLUMN_MAPPINGS, SwedishColumnMapping, EnglishColumnMapping } from '@/types/importing';
+import { COLUMN_MAPPINGS } from '@/types/importing';
 
 export const useProductImport = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -84,7 +85,7 @@ export const useProductImport = () => {
         
         // Handle mapping specific fields
         if (columnMapping === "swedish") {
-          const swedishMapping = currentMapping as SwedishColumnMapping;
+          const swedishMapping = currentMapping as typeof COLUMN_MAPPINGS['swedish'];
           stockStatus = product[swedishMapping.packaging] 
             ? parseInt(String(product[swedishMapping.packaging]).replace(/\s/g, '')) || 0 
             : 0;
@@ -95,7 +96,7 @@ export const useProductImport = () => {
             category = brandParts[0].trim();
           }
         } else if (columnMapping === "english") {
-          const englishMapping = currentMapping as EnglishColumnMapping;
+          const englishMapping = currentMapping as typeof COLUMN_MAPPINGS['english'];
           stockStatus = product[englishMapping.stockStatus] || 0;
           description = product[englishMapping.description] || '';
           category = product[englishMapping.category] || null;
