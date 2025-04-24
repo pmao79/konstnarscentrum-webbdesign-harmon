@@ -18,7 +18,8 @@ import {
   Save,
   X,
   Package,
-  Tag
+  Tag,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -69,19 +70,19 @@ const AdminCategories = () => {
   // Fetch product counts per category
   const fetchCategoryCounts = async () => {
     try {
-      // Get counts for each category
-      const { data, error } = await supabase
+      // Get counts for each category using a different approach
+      // Instead of using .group() which isn't available, we'll use a raw SQL query
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('category, count')
-        .not('category', 'is', null)
-        .group('category');
+        .select('category');
       
-      if (error) throw error;
+      if (productsError) throw productsError;
       
+      // Count occurrences of each category manually
       const counts: Record<string, number> = {};
-      data?.forEach(item => {
-        if (item.category) {
-          counts[item.category] = parseInt(item.count);
+      productsData?.forEach(product => {
+        if (product.category) {
+          counts[product.category] = (counts[product.category] || 0) + 1;
         }
       });
       
