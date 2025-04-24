@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { processExcelFile, validateProducts } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
-import type { ImportProgress, ColumnMappingType, COLUMN_MAPPINGS, SwedishColumnMapping, EnglishColumnMapping } from '@/types/importing';
+import type { ImportProgress, ColumnMappingType } from '@/types/importing';
 import { COLUMN_MAPPINGS } from '@/types/importing';
 
 export const useProductImport = () => {
