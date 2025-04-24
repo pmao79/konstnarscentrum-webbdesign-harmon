@@ -78,12 +78,11 @@ export const saveProductVariants = async (
       console.log(`Sparar batch ${batchIndex} med ${batch.length} varianter`);
       
       try {
-        // VIKTIG KORRIGERING: Ändra ON CONFLICT för att specificera vilken kolumn
-        // vi uppdaterar mot, vilket måste matcha kolumnnamnet i unique_article_number
+        // KRITISK ÄNDRING: Ta bort onConflict-specifikationen helt och låt 
+        // Supabase använda den befintliga unique_article_number-constrainten automatiskt
         const { data, error: variantError } = await supabase
           .from('products')
           .upsert(batch, {
-            onConflict: 'article_number',  // Detta måste matcha kolumnnamnet i constrainten
             ignoreDuplicates: false
           })
           .select();
@@ -172,4 +171,3 @@ export const saveProductVariants = async (
     };
   }
 };
-

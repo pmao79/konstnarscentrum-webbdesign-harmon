@@ -10,7 +10,7 @@ export const saveMasterProduct = async (
   try {
     console.log(`Attempting to create/update master product: ${masterName}`);
     
-    // Här korrigerar vi ON CONFLICT för master_products-tabellen
+    // Korrigerad ON CONFLICT-syntax för master_products
     const { data: masterProduct, error: masterError } = await supabase
       .from('master_products')
       .upsert({
@@ -18,8 +18,6 @@ export const saveMasterProduct = async (
         base_price: averagePrice,
         category,
         source
-      }, {
-        onConflict: 'name'  // Säkerställer att vi använder rätt kolumnnamn 
       })
       .select()
       .single();
@@ -48,4 +46,3 @@ export const saveMasterProduct = async (
     throw error;
   }
 };
-
