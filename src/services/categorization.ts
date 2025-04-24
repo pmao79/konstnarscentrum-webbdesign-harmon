@@ -37,9 +37,9 @@ export const categorizeExistingProducts = async () => {
         const categorizedProduct = categorizeProduct(product);
         
         // Check if any categorization fields changed
+        // Note: Since subcategory does not exist in the DB schema, we only check category and supplier
         const hasChanged = 
           categorizedProduct.category !== product.category ||
-          categorizedProduct.subcategory !== product.subcategory ||
           categorizedProduct.supplier !== product.supplier;
           
         if (hasChanged) updatedCount++;

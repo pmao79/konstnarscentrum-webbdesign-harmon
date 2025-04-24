@@ -136,10 +136,12 @@ export const categorizeProduct = (product: any): any => {
   // Get brand
   const brand = getBrandFromName(productName) || product.supplier;
   
+  // Create a new product object with updated fields
+  // Note: We're only setting category and supplier since subcategory doesn't exist in the database
   return {
     ...product,
     category: product.category || category,
-    subcategory: product.subcategory || subcategory,
+    // We don't set subcategory as it's not in the database schema
     supplier: product.supplier || brand
   };
 };
