@@ -1,10 +1,13 @@
-
 import { useToast } from "@/hooks/use-toast";
 import { processExcelFile } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
 import { validateProducts } from '@/utils/importValidation';
 import { mapProductData } from '@/utils/productMapping';
-import { saveImportLog, saveMasterProduct, saveProductVariants } from '@/services/importService';
+import { 
+  saveImportLog, 
+  saveMasterProduct, 
+  saveProductVariants 
+} from '@/services/importService';
 import { useImportProgress } from '@/hooks/useImportProgress';
 import type { ColumnMappingType, ImportProgress } from '@/types/importing';
 import { COLUMN_MAPPINGS } from '@/types/importing';
