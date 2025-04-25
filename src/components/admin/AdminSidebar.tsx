@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -15,7 +16,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/hooks/useAuth';
 
 const AdminSidebar = () => {
