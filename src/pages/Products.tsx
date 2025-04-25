@@ -28,7 +28,6 @@ const Products = () => {
   
   // Initialize state from URL parameters
   const [filters, setFilters] = useState<FilterOptions>({
-    category: searchParams.get('category') || undefined,
     subcategory: searchParams.get('subcategory') || undefined,
     brand: searchParams.get('brand') || undefined,
     productGroup: searchParams.get('productGroup') || undefined,
@@ -64,7 +63,6 @@ const Products = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     
-    if (filters.category) params.set('category', filters.category);
     if (filters.subcategory) params.set('subcategory', filters.subcategory);
     if (filters.brand) params.set('brand', filters.brand);
     if (filters.productGroup) params.set('productGroup', filters.productGroup);
@@ -136,7 +134,7 @@ const Products = () => {
     });
   };
 
-  const isFiltered = !!(filters.category || filters.subcategory || filters.brand || 
+  const isFiltered = !!(filters.subcategory || filters.brand || 
                        filters.productGroup || filters.inStock ||
                        filters.search || filters.priceRange?.min || filters.priceRange?.max);
 
