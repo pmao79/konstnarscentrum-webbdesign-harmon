@@ -39,11 +39,11 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     inStock: true
   });
 
-  // Fetch unique brands from database (supplier field)
+  // Fetch unique brands from database (varumarke field)
   const { data: brandsData } = useQuery({
     queryKey: ['uniqueBrands'],
     queryFn: async () => {
-      // Fetch unique suppliers (brands) from the products table
+      // Fetch unique varumarke from the products table
       const { data, error } = await supabase
         .from('products')
         .select('supplier')
@@ -65,7 +65,7 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     }
   });
   
-  // Fetch unique product groups
+  // Fetch unique product groups (produktgrupp field)
   const { data: productGroupsData } = useQuery({
     queryKey: ['uniqueProductGroups'],
     queryFn: async () => {
@@ -89,7 +89,7 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     }
   });
 
-  // Fetch unique subcategories
+  // Fetch unique subcategories (underkategori field)
   const { data: subcategoriesData } = useQuery({
     queryKey: ['uniqueSubcategories'],
     queryFn: async () => {

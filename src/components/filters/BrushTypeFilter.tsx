@@ -23,15 +23,19 @@ const BrushTypeFilter: React.FC<BrushTypeFilterProps> = ({
       isExpanded={isExpanded}
       onToggle={onToggle}
     >
-      {brushTypes.map((type) => (
-        <FilterCheckbox
-          key={type}
-          id={`brush-${type}`}
-          label={type}
-          checked={selectedType === type}
-          onChange={() => onTypeChange(type)}
-        />
-      ))}
+      {brushTypes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Inga penseltyper hittades</p>
+      ) : (
+        brushTypes.map((type) => (
+          <FilterCheckbox
+            key={type}
+            id={`brush-${type}`}
+            label={type}
+            checked={selectedType === type}
+            onChange={() => onTypeChange(type)}
+          />
+        ))
+      )}
     </FilterSection>
   );
 };

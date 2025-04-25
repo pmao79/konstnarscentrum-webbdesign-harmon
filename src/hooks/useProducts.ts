@@ -27,14 +27,17 @@ export const useProducts = (filters: FilterOptions = {}) => {
       
       // Apply filters if they exist
       if (filters.subcategory) {
+        // Map to underkategori field
         query = query.eq('variant_type', filters.subcategory);
       }
       
       if (filters.brand) {
+        // Map to varumarke field
         query = query.eq('supplier', filters.brand);
       }
       
       if (filters.productGroup) {
+        // Map to produktgrupp field
         query = query.eq('variant_name', filters.productGroup);
       }
       
@@ -51,6 +54,7 @@ export const useProducts = (filters: FilterOptions = {}) => {
       }
       
       if (filters.inStock) {
+        // Map to förp field
         query = query.gt('stock_status', 0);
       }
       

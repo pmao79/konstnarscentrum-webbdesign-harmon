@@ -50,22 +50,25 @@ export const useProductsAdmin = () => {
       setProducts(allProducts);
       setFilteredProducts(allProducts);
 
-      // Extract unique values for filters
+      // Extract unique values for filters - use the correct field mappings
       const uniqueCategories = Array.from(new Set(
         allProducts.map(product => product.category || 'Okategoriserad')
           .filter(Boolean)
       )).sort();
       
+      // underkategori = variant_type
       const uniqueSubcategories = Array.from(new Set(
         allProducts.map(product => product.variant_type || 'Övrigt')
           .filter(Boolean)
       )).sort();
       
+      // varumarke = supplier
       const uniqueBrands = Array.from(new Set(
         allProducts.map(product => product.supplier || 'Okänd')
           .filter(Boolean)
       )).sort();
 
+      // produktgrupp = variant_name
       const uniqueProductGroups = Array.from(new Set(
         allProducts.map(product => product.variant_name || 'Övrigt')
           .filter(Boolean)
@@ -105,24 +108,28 @@ export const useProductsAdmin = () => {
       );
     }
     
+    // Filter by underkategori (variant_type)
     if (selectedSubcategory && selectedSubcategory !== 'all') {
       result = result.filter(product => 
         product.variant_type === selectedSubcategory
       );
     }
     
+    // Filter by varumarke (supplier)
     if (selectedBrand && selectedBrand !== 'all') {
       result = result.filter(product => 
         product.supplier === selectedBrand
       );
     }
 
+    // Filter by produktgrupp (variant_name)
     if (selectedProductGroup && selectedProductGroup !== 'all') {
       result = result.filter(product => 
         product.variant_name === selectedProductGroup
       );
     }
 
+    // Filter by in stock (förp > 0, implemented as stock_status in the database)
     if (inStockOnly) {
       result = result.filter(product => 
         product.stock_status > 0

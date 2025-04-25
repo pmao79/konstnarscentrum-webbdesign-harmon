@@ -23,15 +23,19 @@ const PaintTypeFilter: React.FC<PaintTypeFilterProps> = ({
       isExpanded={isExpanded}
       onToggle={onToggle}
     >
-      {paintTypes.map((type) => (
-        <FilterCheckbox
-          key={type}
-          id={`paint-${type}`}
-          label={type}
-          checked={selectedType === type}
-          onChange={() => onTypeChange(type)}
-        />
-      ))}
+      {paintTypes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Inga färgtyper hittades</p>
+      ) : (
+        paintTypes.map((type) => (
+          <FilterCheckbox
+            key={type}
+            id={`paint-${type}`}
+            label={type}
+            checked={selectedType === type}
+            onChange={() => onTypeChange(type)}
+          />
+        ))
+      )}
     </FilterSection>
   );
 };

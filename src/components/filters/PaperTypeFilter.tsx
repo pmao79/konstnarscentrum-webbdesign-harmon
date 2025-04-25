@@ -23,15 +23,19 @@ const PaperTypeFilter: React.FC<PaperTypeFilterProps> = ({
       isExpanded={isExpanded}
       onToggle={onToggle}
     >
-      {paperTypes.map((type) => (
-        <FilterCheckbox
-          key={type}
-          id={`paper-${type}`}
-          label={type}
-          checked={selectedType === type}
-          onChange={() => onTypeChange(type)}
-        />
-      ))}
+      {paperTypes.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Inga papperstyper hittades</p>
+      ) : (
+        paperTypes.map((type) => (
+          <FilterCheckbox
+            key={type}
+            id={`paper-${type}`}
+            label={type}
+            checked={selectedType === type}
+            onChange={() => onTypeChange(type)}
+          />
+        ))
+      )}
     </FilterSection>
   );
 };

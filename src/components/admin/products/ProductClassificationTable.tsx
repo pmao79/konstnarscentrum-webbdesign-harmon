@@ -48,9 +48,19 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
   // Generic function to update a single product field
   const updateProductField = async (productId: string, field: string, value: string) => {
     try {
+      // Map frontend fields to database columns
+      const dbFieldMapping: Record<string, string> = {
+        'category': 'category',
+        'variant_type': 'variant_type', // underkategori
+        'supplier': 'supplier', // varumarke
+        'variant_name': 'variant_name', // produktgrupp
+      };
+      
+      const dbField = dbFieldMapping[field] || field;
+
       const { error } = await supabase
         .from('products')
-        .update({ [field]: value })
+        .update({ [dbField]: value })
         .eq('id', productId);
       
       if (error) throw error;
@@ -71,9 +81,19 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
     }
 
     try {
+      // Map frontend fields to database columns
+      const dbFieldMapping: Record<string, string> = {
+        'category': 'category',
+        'variant_type': 'variant_type', // underkategori
+        'supplier': 'supplier', // varumarke
+        'variant_name': 'variant_name', // produktgrupp
+      };
+      
+      const dbField = dbFieldMapping[bulkEditField] || bulkEditField;
+
       const { error } = await supabase
         .from('products')
-        .update({ [bulkEditField]: bulkEditValue })
+        .update({ [dbField]: bulkEditValue })
         .in('id', selectedProducts);
       
       if (error) throw error;
