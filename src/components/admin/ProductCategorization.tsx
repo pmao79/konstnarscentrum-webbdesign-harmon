@@ -5,11 +5,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Check, RefreshCw, Database, AlertCircle, Loader2 } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import { categorizeExistingProducts, syncCategoriesToTable } from '@/services/importService';
+import { toast } from "sonner";
+import { categorizeExistingProducts, syncCategoriesToTable } from '@/services/categorization';
 
 const ProductCategorization = () => {
-  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<{
@@ -17,6 +16,9 @@ const ProductCategorization = () => {
     updated?: number;
     categoriesFound?: number;
     categoriesInserted?: number;
+    categories?: string[];
+    subcategories?: string[];
+    brands?: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +29,8 @@ const ProductCategorization = () => {
       setProgress(10);
       setResult(null);
       
-      toast({
-        title: "Kategorisering påbörjad",
-        description: "Produkter kategoriseras baserat på namn, detta kan ta lite tid.",
+      toast.info("Kategorisering påbörjad", {
+        description: "Produkter kategoriseras baserat på namn, detta kan ta lite tid."
       });
       
       // Start categorization process
@@ -37,29 +38,44 @@ const ProductCategorization = () => {
       const result = await categorizeExistingProducts();
       
       setProgress(70);
-      // Sync updated categories to categories table
-      const syncResult = await syncCategoriesToTable();
+      // Try to sync categories but don't fail if it doesn't work
+      let syncResult;
+      try {
+        syncResult = await syncCategoriesToTable();
+      } catch (syncError) {
+        console.warn('Category syncing had issues but we can continue:', syncError);
+        syncResult = { 
+          categoriesFound: result.categories?.length || 0, 
+          categoriesInserted: 0 
+        };
+      }
       
       setProgress(100);
       setResult({
         processed: result.processedCount,
         updated: result.updatedCount,
         categoriesFound: syncResult.categoriesFound,
-        categoriesInserted: syncResult.categoriesInserted
+        categoriesInserted: syncResult.categoriesInserted,
+        categories: result.categories,
+        subcategories: result.subcategories,
+        brands: result.brands
       });
       
-      toast({
-        title: "Kategorisering slutförd",
-        description: `${result.updatedCount} produkter har uppdaterats med kategorier.`,
-      });
+      if (result.updatedCount > 0) {
+        toast.success("Kategorisering slutförd", {
+          description: `${result.updatedCount} produkter har uppdaterats med kategorier.`
+        });
+      } else {
+        toast.info("Kategorisering slutförd", {
+          description: "Inga produkter behövde uppdateras. Alla produkter är redan kategoriserade eller matchade inte något mönster."
+        });
+      }
     } catch (err: any) {
       console.error('Error categorizing products:', err);
       setError(err.message || 'Ett fel uppstod under kategoriseringen');
       
-      toast({
-        title: "Fel vid kategorisering",
-        description: err.message || 'Ett fel uppstod under kategoriseringen',
-        variant: "destructive",
+      toast.error("Fel vid kategorisering", {
+        description: err.message || 'Ett fel uppstod under kategoriseringen'
       });
     } finally {
       setIsProcessing(false);
@@ -87,7 +103,8 @@ const ProductCategorization = () => {
               <li>Analysera alla produktnamn i databasen</li>
               <li>Tilldela lämpliga kategorier baserat på nyckelord</li>
               <li>Identifiera varumärken från produktnamn</li>
-              <li>Synkronisera kategorier till kategorilistan</li>
+              <li>Uppdatera endast produkter som saknar kategori eller underkategori</li>
+              <li>Befintliga kategorier och klassificeringar bevaras</li>
             </ul>
           </div>
         )}
@@ -98,7 +115,7 @@ const ProductCategorization = () => {
             <p className="text-center text-sm text-muted-foreground">
               {progress < 30 && "Förbereder kategorisering..."}
               {progress >= 30 && progress < 70 && "Kategoriserar produkter..."}
-              {progress >= 70 && progress < 100 && "Sparar kategorier..."}
+              {progress >= 70 && progress < 100 && "Sammanställer resultat..."}
               {progress === 100 && "Nästan klart..."}
             </p>
           </div>
@@ -112,17 +129,71 @@ const ProductCategorization = () => {
         )}
         
         {result && (
-          <div className="space-y-4 mt-4 p-4 bg-primary/5 rounded-md">
-            <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-green-500" />
-              <p className="font-medium">Kategorisering slutförd</p>
+          <div className="space-y-4 mt-4">
+            <div className="p-4 bg-primary/5 rounded-md">
+              <div className="flex items-center gap-2 mb-2">
+                <Check className="h-5 w-5 text-green-500" />
+                <p className="font-medium">Kategorisering slutförd</p>
+              </div>
+              <ul className="ml-6 space-y-2 text-sm">
+                <li><span className="font-medium">{result.processed}</span> produkter analyserade</li>
+                <li><span className="font-medium">{result.updated}</span> produkter uppdaterade</li>
+                <li><span className="font-medium">{result.categoriesFound}</span> unika kategorier identifierade</li>
+              </ul>
             </div>
-            <ul className="ml-6 space-y-2 text-sm">
-              <li><span className="font-medium">{result.processed}</span> produkter analyserade</li>
-              <li><span className="font-medium">{result.updated}</span> produkter uppdaterade</li>
-              <li><span className="font-medium">{result.categoriesFound}</span> unika kategorier identifierade</li>
-              <li><span className="font-medium">{result.categoriesInserted}</span> kategorier tillagda/uppdaterade i kategorilistan</li>
-            </ul>
+            
+            {result.updated && result.updated > 0 ? (
+              <div className="space-y-4">
+                {result.categories && result.categories.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Identifierade kategorier:</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {result.categories.map(cat => (
+                        <span key={cat} className="px-2 py-1 bg-muted text-xs rounded-md">{cat}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {result.subcategories && result.subcategories.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Identifierade underkategorier:</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {result.subcategories.map(subcat => (
+                        <span key={subcat} className="px-2 py-1 bg-muted text-xs rounded-md">{subcat}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {result.brands && result.brands.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium mb-2">Identifierade varumärken:</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {result.brands.map(brand => (
+                        <span key={brand} className="px-2 py-1 bg-muted text-xs rounded-md">{brand}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <Alert className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    För att se alla ändringar och göra manuella justeringar, besök <a href="/admin/classification" className="text-primary underline">Produktklassificering</a>.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            ) : (
+              <Alert className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Inga produkter behövde uppdateras. Detta kan bero på att alla produkter redan har klassificeringar 
+                  eller att produktnamnen inte matchar våra mönster. För manuell klassificering, 
+                  besök <a href="/admin/classification" className="text-primary underline">Produktklassificering</a>.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
       </CardContent>

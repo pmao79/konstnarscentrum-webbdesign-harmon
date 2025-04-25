@@ -18,12 +18,14 @@ const categoryMappings: CategoryMapping[] = [
   { pattern: /oljefärg|olja färg|oil color|oil paint/i, category: "Färg", subcategory: "Oljefärg" },
   { pattern: /gouache/i, category: "Färg", subcategory: "Gouache" },
   { pattern: /tempera/i, category: "Färg", subcategory: "Tempera" },
+  { pattern: /färg set|color set|målarset|paint set/i, category: "Färg", subcategory: "Färgset" },
   { pattern: /färg|color|paint/i, category: "Färg" },
   
   // Penslar (Brushes) category
   { pattern: /akrylpensel|akryl pensel/i, category: "Penslar", subcategory: "Akrylpenslar" },
   { pattern: /akvarellpensel|akvarell pensel/i, category: "Penslar", subcategory: "Akvarellpenslar" },
   { pattern: /oljepensel|olje pensel/i, category: "Penslar", subcategory: "Oljepenslar" },
+  { pattern: /penselset|penslar set/i, category: "Penslar", subcategory: "Penselset" },
   { pattern: /pensel|brush/i, category: "Penslar" },
   
   // Papper (Paper) category
@@ -124,34 +126,58 @@ export const getBrandFromName = (productName: string): string | null => {
 
 /**
  * Categorize a product based on its name, updating its category, subcategory, and brand fields
+ * Now returns whether the product was actually modified
  */
-export const categorizeProduct = (product: any): any => {
-  if (!product) return product;
+export const categorizeProduct = (product: any): { product: any, wasModified: boolean } => {
+  if (!product) return { product, wasModified: false };
   
   const productName = product.name || '';
+  let wasModified = false;
   
   // Get category and subcategory
   const { category, subcategory } = getCategoryFromName(productName);
   
   // Get brand
-  const brand = getBrandFromName(productName) || product.supplier;
+  const brand = getBrandFromName(productName);
   
   // Create a new product object with updated fields
-  // Note: We're only setting category and supplier since subcategory doesn't exist in the database
-  return {
-    ...product,
-    category: product.category || category,
-    // We don't set subcategory as it's not in the database schema
-    supplier: product.supplier || brand
-  };
+  const updatedProduct = { ...product };
+  
+  // Only update the fields if they're not already set
+  if (!updatedProduct.category && category !== "Övrigt") {
+    updatedProduct.category = category;
+    wasModified = true;
+  }
+  
+  // Update variant_type with subcategory if available and not already set
+  if (subcategory && !updatedProduct.variant_type) {
+    updatedProduct.variant_type = subcategory;
+    wasModified = true;
+  }
+  
+  // Update supplier with brand if available and not already set
+  if (brand && !updatedProduct.supplier) {
+    updatedProduct.supplier = brand;
+    wasModified = true;
+  }
+  
+  return { product: updatedProduct, wasModified };
 };
 
 /**
  * Batch categorize an array of products
  */
-export const batchCategorizeProducts = (products: any[]): any[] => {
-  if (!products || !Array.isArray(products)) return [];
-  return products.map(categorizeProduct);
+export const batchCategorizeProducts = (products: any[]): { products: any[], modifiedCount: number } => {
+  if (!products || !Array.isArray(products)) return { products: [], modifiedCount: 0 };
+  
+  let modifiedCount = 0;
+  const categorizedProducts = products.map(product => {
+    const result = categorizeProduct(product);
+    if (result.wasModified) modifiedCount++;
+    return result.product;
+  });
+  
+  return { products: categorizedProducts, modifiedCount };
 };
 
 /**

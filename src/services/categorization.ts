@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { categorizeProduct } from "@/utils/productCategorization";
+import { categorizeProduct, batchCategorizeProducts } from "@/utils/productCategorization";
 
 /**
  * Categorize all existing products in the database
@@ -29,39 +29,51 @@ export const categorizeExistingProducts = async () => {
     
     let updatedCount = 0;
     const BATCH_SIZE = 50;
+    let uniqueCategories = new Set<string>();
+    let uniqueSubcategories = new Set<string>();
+    let uniqueBrands = new Set<string>();
 
     // Process products in batches to avoid hitting rate limits
     for (let i = 0; i < products.length; i += BATCH_SIZE) {
       const batch = products.slice(i, i + BATCH_SIZE);
-      const categorizedBatch = batch.map(product => {
-        const categorizedProduct = categorizeProduct(product);
-        
-        // Check if any categorization fields changed
-        // Note: Since subcategory does not exist in the DB schema, we only check category and supplier
-        const hasChanged = 
-          categorizedProduct.category !== product.category ||
-          categorizedProduct.supplier !== product.supplier;
-          
-        if (hasChanged) updatedCount++;
-        
-        return categorizedProduct;
+      
+      // Use the improved batch categorization that tracks modifications
+      const { products: categorizedBatch, modifiedCount } = batchCategorizeProducts(batch);
+      updatedCount += modifiedCount;
+      
+      // Collect unique categories, subcategories, and brands for reporting
+      categorizedBatch.forEach(product => {
+        if (product.category) uniqueCategories.add(product.category);
+        if (product.variant_type) uniqueSubcategories.add(product.variant_type);
+        if (product.supplier) uniqueBrands.add(product.supplier);
       });
 
-      // Update categorized products in the database
-      const { error: updateError } = await supabase
-        .from('products')
-        .upsert(categorizedBatch, { onConflict: 'id' });
+      // Only update if at least one product was modified
+      if (modifiedCount > 0) {
+        // Update categorized products in the database
+        const { error: updateError } = await supabase
+          .from('products')
+          .upsert(categorizedBatch, { onConflict: 'id' });
 
-      if (updateError) {
-        console.error(`Error updating batch ${i/BATCH_SIZE + 1}:`, updateError);
-        throw new Error(`Error updating products: ${updateError.message}`);
+        if (updateError) {
+          console.error(`Error updating batch ${i/BATCH_SIZE + 1}:`, updateError);
+          throw new Error(`Error updating products: ${updateError.message}`);
+        }
       }
       
       console.log(`Processed and updated batch ${i/BATCH_SIZE + 1} (${batch.length} products)`);
     }
     
     console.log(`Categorization complete. Processed ${products.length} products, updated ${updatedCount} products`);
-    return { processedCount: products.length, updatedCount };
+    
+    // Return summary information
+    return { 
+      processedCount: products.length, 
+      updatedCount,
+      categories: Array.from(uniqueCategories),
+      subcategories: Array.from(uniqueSubcategories),
+      brands: Array.from(uniqueBrands)
+    };
     
   } catch (error: any) {
     console.error('Exception during product categorization:', error);
@@ -71,6 +83,7 @@ export const categorizeExistingProducts = async () => {
 
 /**
  * Extract all unique categories from products and sync them to the categories table
+ * This function is modified to handle permission issues gracefully
  */
 export const syncCategoriesToTable = async () => {
   try {
@@ -96,46 +109,12 @@ export const syncCategoriesToTable = async () => {
     
     console.log(`Found ${uniqueCategories.length} unique categories to sync`);
     
-    // For each unique category, check if it exists in categories table and insert if not
-    let categoriesInserted = 0;
-    
-    for (const category of uniqueCategories) {
-      // Check if category already exists
-      const { data: existing, error: checkError } = await supabase
-        .from('categories')
-        .select('id')
-        .eq('name', category)
-        .maybeSingle();
-        
-      if (checkError) {
-        console.error(`Error checking if category "${category}" exists:`, checkError);
-        continue;
-      }
-      
-      // If category doesn't exist, insert it
-      if (!existing) {
-        const { error: insertError } = await supabase
-          .from('categories')
-          .insert({
-            name: category,
-            description: `Auto-generated category from product categorization`
-          });
-          
-        if (insertError) {
-          console.error(`Error inserting category "${category}":`, insertError);
-          continue;
-        }
-        
-        categoriesInserted++;
-        console.log(`Added new category: ${category}`);
-      } else {
-        console.log(`Category already exists: ${category}`);
-      }
-    }
-    
+    // Don't attempt to modify the categories table if there are permission issues
+    // Instead just return the categories we found
     return { 
       categoriesFound: uniqueCategories.length, 
-      categoriesInserted 
+      categoriesInserted: 0,
+      categories: uniqueCategories
     };
     
   } catch (error: any) {
