@@ -262,6 +262,7 @@ export const useProductImport = () => {
         fileName: file.name,
         successCount,
         failedCount,
+        // Fix TypeScript error: Access supplier from first mapped product, not the categorizeProduct result
         supplier: mappedProducts[0]?.supplier
       });
       
