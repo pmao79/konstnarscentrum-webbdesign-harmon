@@ -37,4 +37,3 @@ const PaperTypeFilter: React.FC<PaperTypeFilterProps> = ({
 };
 
 export default PaperTypeFilter;
-

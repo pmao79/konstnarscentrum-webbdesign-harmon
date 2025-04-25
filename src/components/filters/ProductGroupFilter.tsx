@@ -37,4 +37,3 @@ const ProductGroupFilter: React.FC<ProductGroupFilterProps> = ({
 };
 
 export default ProductGroupFilter;
-

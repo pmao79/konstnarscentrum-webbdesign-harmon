@@ -37,4 +37,3 @@ const BrandFilter: React.FC<BrandFilterProps> = ({
 };
 
 export default BrandFilter;
-

@@ -16,4 +16,3 @@ const ProductFilters: React.FC<ProductFiltersProps> = (props) => {
 };
 
 export default ProductFilters;
-

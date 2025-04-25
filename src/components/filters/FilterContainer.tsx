@@ -181,4 +181,3 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
 };
 
 export default FilterContainer;
-

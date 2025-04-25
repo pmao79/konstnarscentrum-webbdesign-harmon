@@ -33,4 +33,3 @@ const FilterCheckbox: React.FC<FilterCheckboxProps> = ({
 };
 
 export default FilterCheckbox;
-

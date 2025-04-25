@@ -37,4 +37,3 @@ const PaintTypeFilter: React.FC<PaintTypeFilterProps> = ({
 };
 
 export default PaintTypeFilter;
-

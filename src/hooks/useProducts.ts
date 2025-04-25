@@ -1,10 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from "@/integrations/supabase/client";
 
 export interface FilterOptions {
-  category?: string;
   subcategory?: string;
   brand?: string;
   productGroup?: string;
@@ -28,16 +26,12 @@ export const useProducts = (filters: FilterOptions = {}) => {
         .select('*', { count: 'exact' });
       
       // Apply filters if they exist
-      if (filters.category) {
-        query = query.eq('category', filters.category);
-      }
-      
       if (filters.subcategory) {
         query = query.eq('variant_type', filters.subcategory);
       }
       
       if (filters.brand) {
-        query = query.ilike('supplier', `%${filters.brand}%`);
+        query = query.eq('supplier', filters.brand);
       }
       
       if (filters.productGroup) {

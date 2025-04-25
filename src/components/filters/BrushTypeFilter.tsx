@@ -37,4 +37,3 @@ const BrushTypeFilter: React.FC<BrushTypeFilterProps> = ({
 };
 
 export default BrushTypeFilter;
-
