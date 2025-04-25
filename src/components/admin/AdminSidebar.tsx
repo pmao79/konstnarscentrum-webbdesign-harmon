@@ -9,7 +9,8 @@ import {
   FileSpreadsheet,
   BarChart,
   Menu,
-  Tag
+  Tag,
+  ListFilter
 } from "lucide-react";
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -26,6 +27,7 @@ const AdminSidebar = () => {
   const menuItems = [
     { icon: <LayoutDashboard size={18} />, label: 'Översikt', path: '/admin' },
     { icon: <Package size={18} />, label: 'Produkter', path: '/admin/products' },
+    { icon: <ListFilter size={18} />, label: 'Produktklassificering', path: '/admin/classification' },
     { icon: <Tag size={18} />, label: 'Kategorier', path: '/admin/categories' },
     { icon: <FileSpreadsheet size={18} />, label: 'Importer', path: '/admin/imports' },
     { icon: <ShoppingCart size={18} />, label: 'Ordrar', path: '/admin/orders' },

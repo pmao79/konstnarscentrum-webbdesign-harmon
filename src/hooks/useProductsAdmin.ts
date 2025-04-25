@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 
@@ -21,71 +21,71 @@ export const useProductsAdmin = () => {
   const [productGroups, setProductGroups] = useState<string[]>([]);
   const [groupedView, setGroupedView] = useState(true);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setIsLoading(true);
-        let { data: masterProducts, error: masterError } = await supabase
-          .from('master_products')
-          .select(`
-            *,
-            products:products(*)
-          `)
-          .order('name', { ascending: true });
+  const fetchProducts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      let { data: masterProducts, error: masterError } = await supabase
+        .from('master_products')
+        .select(`
+          *,
+          products:products(*)
+        `)
+        .order('name', { ascending: true });
+      
+      if (masterError) throw masterError;
+      
+      const { data: standaloneProducts, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .is('master_product_id', null)
+        .order('name', { ascending: true });
         
-        if (masterError) throw masterError;
-        
-        const { data: standaloneProducts, error: productsError } = await supabase
-          .from('products')
-          .select('*')
-          .is('master_product_id', null)
-          .order('name', { ascending: true });
-          
-        if (productsError) throw productsError;
-        
-        const allProducts = [
-          ...(standaloneProducts || []),
-          ...masterProducts?.flatMap(mp => mp.products) || []
-        ];
-        
-        setProducts(allProducts);
-        setFilteredProducts(allProducts);
+      if (productsError) throw productsError;
+      
+      const allProducts = [
+        ...(standaloneProducts || []),
+        ...masterProducts?.flatMap(mp => mp.products) || []
+      ];
+      
+      setProducts(allProducts);
+      setFilteredProducts(allProducts);
 
-        // Extract unique values for filters
-        const uniqueCategories = Array.from(new Set(
-          allProducts.map(product => product.category || 'Okategoriserad')
-            .filter(Boolean)
-        )).sort();
-        
-        const uniqueSubcategories = Array.from(new Set(
-          allProducts.map(product => product.variant_type || 'Övrigt')
-            .filter(Boolean)
-        )).sort();
-        
-        const uniqueBrands = Array.from(new Set(
-          allProducts.map(product => product.supplier || 'Okänd')
-            .filter(Boolean)
-        )).sort();
+      // Extract unique values for filters
+      const uniqueCategories = Array.from(new Set(
+        allProducts.map(product => product.category || 'Okategoriserad')
+          .filter(Boolean)
+      )).sort();
+      
+      const uniqueSubcategories = Array.from(new Set(
+        allProducts.map(product => product.variant_type || 'Övrigt')
+          .filter(Boolean)
+      )).sort();
+      
+      const uniqueBrands = Array.from(new Set(
+        allProducts.map(product => product.supplier || 'Okänd')
+          .filter(Boolean)
+      )).sort();
 
-        const uniqueProductGroups = Array.from(new Set(
-          allProducts.map(product => product.variant_name || 'Övrigt')
-            .filter(Boolean)
-        )).sort();
-        
-        setCategories(uniqueCategories);
-        setSubcategories(uniqueSubcategories);
-        setBrands(uniqueBrands);
-        setProductGroups(uniqueProductGroups);
-        
-      } catch (error) {
-        console.error('Error fetching products:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchProducts();
+      const uniqueProductGroups = Array.from(new Set(
+        allProducts.map(product => product.variant_name || 'Övrigt')
+          .filter(Boolean)
+      )).sort();
+      
+      setCategories(uniqueCategories);
+      setSubcategories(uniqueSubcategories);
+      setBrands(uniqueBrands);
+      setProductGroups(uniqueProductGroups);
+      
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   useEffect(() => {
     let result = [...products];
@@ -149,6 +149,10 @@ export const useProductsAdmin = () => {
     setInStockOnly(false);
   };
 
+  const refreshProducts = () => {
+    fetchProducts();
+  };
+
   return {
     products,
     filteredProducts,
@@ -171,6 +175,7 @@ export const useProductsAdmin = () => {
     productGroups,
     groupedView,
     setGroupedView,
-    resetFilters
+    resetFilters,
+    refreshProducts
   };
 };
