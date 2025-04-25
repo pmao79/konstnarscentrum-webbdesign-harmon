@@ -10,6 +10,8 @@ import ProductGroupFilter from './ProductGroupFilter';
 import BrandFilter from './BrandFilter';
 import StockFilter from './StockFilter';
 import { FilterOptions } from '@/hooks/useProducts';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from "@/integrations/supabase/client";
 
 interface FilterContainerProps {
   filters: FilterOptions;
@@ -35,6 +37,32 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     productGroups: true,
     brands: true,
     inStock: true
+  });
+
+  // Fetch unique brands from database
+  const { data: brandsData } = useQuery({
+    queryKey: ['uniqueBrands'],
+    queryFn: async () => {
+      // Fetch unique suppliers (brands) from the products table
+      const { data, error } = await supabase
+        .from('products')
+        .select('supplier')
+        .not('supplier', 'is', null)
+        .order('supplier');
+      
+      if (error) throw error;
+      
+      // Extract unique supplier values and filter out nulls and empty strings
+      const uniqueBrands = Array.from(
+        new Set(
+          data
+            .map(item => item.supplier)
+            .filter(Boolean)
+        )
+      ).sort();
+      
+      return uniqueBrands as string[];
+    }
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -157,7 +185,7 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
           <BrandFilter 
             selectedBrand={filters.brand}
             onBrandChange={(brand) => onFilterChange({ ...filters, brand, page: 1 })}
-            brands={[...new Set(categories.flatMap(cat => cat.subcategories))]}
+            brands={brandsData || []}
             isExpanded={expandedSections.brands}
             onToggle={() => toggleSection('brands')}
           />
