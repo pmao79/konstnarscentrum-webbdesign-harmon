@@ -12,6 +12,8 @@ interface ProductFiltersProps {
 }
 
 const ProductFilters: React.FC<ProductFiltersProps> = (props) => {
+  // Add a console.log to verify the component is rendering with the correct props
+  console.log('ProductFilters props:', props);
   return <FilterContainer {...props} />;
 };
 
