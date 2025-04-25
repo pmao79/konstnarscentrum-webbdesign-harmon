@@ -31,7 +31,9 @@ const Products = () => {
     category: searchParams.get('category') || undefined,
     subcategory: searchParams.get('subcategory') || undefined,
     brand: searchParams.get('brand') || undefined,
+    productGroup: searchParams.get('productGroup') || undefined,
     search: searchParams.get('search') || '',
+    inStock: searchParams.get('inStock') === 'true',
     priceRange: {
       min: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
       max: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
@@ -65,7 +67,9 @@ const Products = () => {
     if (filters.category) params.set('category', filters.category);
     if (filters.subcategory) params.set('subcategory', filters.subcategory);
     if (filters.brand) params.set('brand', filters.brand);
+    if (filters.productGroup) params.set('productGroup', filters.productGroup);
     if (filters.search) params.set('search', filters.search);
+    if (filters.inStock) params.set('inStock', 'true');
     if (filters.priceRange?.min) params.set('minPrice', filters.priceRange.min.toString());
     if (filters.priceRange?.max) params.set('maxPrice', filters.priceRange.max.toString());
     if (filters.sortBy) params.set('sort', filters.sortBy);
@@ -133,6 +137,7 @@ const Products = () => {
   };
 
   const isFiltered = !!(filters.category || filters.subcategory || filters.brand || 
+                       filters.productGroup || filters.inStock ||
                        filters.search || filters.priceRange?.min || filters.priceRange?.max);
 
   const NoProductsFound = () => (

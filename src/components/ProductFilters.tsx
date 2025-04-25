@@ -33,39 +33,89 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
   ]);
   
   const [expandedSections, setExpandedSections] = useState({
-    categories: true,
+    paintTypes: true,
+    brushTypes: true,
+    paperTypes: true,
     price: true,
-    brands: true
+    brands: true,
+    productGroups: true,
+    inStock: true
   });
+  
+  const [availableFilters, setAvailableFilters] = useState({
+    paintTypes: [] as string[],
+    brushTypes: [] as string[],
+    paperTypes: [] as string[],
+    brands: [] as string[],
+    productGroups: [] as string[],
+  });
+  
+  const [showInStock, setShowInStock] = useState(filters.inStock || false);
 
-  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<{ name: string; subcategories: string[] }[]>([]);
-
-  // Fetch available categories and brands from the database
+  // Fetch available filters from the database
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        // Fetch unique categories
-        const { data: categoryData, error: categoryError } = await supabase
+        // Fetch unique subcategories (for paint types, brush types, paper types)
+        const { data: subcategoryData, error: subcategoryError } = await supabase
           .from('products')
-          .select('category')
-          .not('category', 'is', null);
+          .select('variant_type')
+          .not('variant_type', 'is', null);
         
-        if (categoryError) {
-          console.error('Error fetching categories:', categoryError);
-        } else if (categoryData) {
-          // Extract unique categories
-          const uniqueCategories = Array.from(
-            new Set(categoryData.map(item => item.category).filter(Boolean))
+        if (subcategoryError) {
+          console.error('Error fetching subcategories:', subcategoryError);
+        } else if (subcategoryData) {
+          // Extract unique subcategories
+          const subcategories = Array.from(
+            new Set(subcategoryData.map(item => item.variant_type).filter(Boolean))
+          ).sort();
+
+          // Categorize subcategories
+          const paintTypes = subcategories.filter(subcat => 
+            subcat.toLowerCase().includes('färg') || 
+            subcat.toLowerCase().includes('akvarell') || 
+            subcat.toLowerCase().includes('gouache') || 
+            subcat.toLowerCase().includes('tempera') ||
+            subcat.toLowerCase().includes('olja')
           );
-
-          // Create category objects with subcategories
-          const formattedCategories = uniqueCategories.map(category => ({
-            name: category,
-            subcategories: [] // For now, we'll leave subcategories empty
+          
+          const brushTypes = subcategories.filter(subcat => 
+            subcat.toLowerCase().includes('pensel') || 
+            subcat.toLowerCase().includes('borste')
+          );
+          
+          const paperTypes = subcategories.filter(subcat => 
+            subcat.toLowerCase().includes('papper') || 
+            subcat.toLowerCase().includes('block') || 
+            subcat.toLowerCase().includes('canvas') || 
+            subcat.toLowerCase().includes('duk')
+          );
+          
+          setAvailableFilters(prev => ({
+            ...prev,
+            paintTypes,
+            brushTypes,
+            paperTypes
           }));
-
-          setAvailableCategories(formattedCategories);
+        }
+        
+        // Fetch unique product groups
+        const { data: groupData, error: groupError } = await supabase
+          .from('products')
+          .select('variant_name')
+          .not('variant_name', 'is', null);
+        
+        if (groupError) {
+          console.error('Error fetching product groups:', groupError);
+        } else if (groupData) {
+          const groups = Array.from(
+            new Set(groupData.map(item => item.variant_name).filter(Boolean))
+          ).sort();
+          
+          setAvailableFilters(prev => ({
+            ...prev,
+            productGroups: groups
+          }));
         }
         
         // Fetch unique suppliers/brands
@@ -82,7 +132,10 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
             new Set(supplierData.map(item => cleanSupplierName(item.supplier)).filter(Boolean))
           ).sort();
           
-          setAvailableBrands(uniqueSuppliers);
+          setAvailableFilters(prev => ({
+            ...prev,
+            brands: uniqueSuppliers
+          }));
         }
       } catch (err) {
         console.error('Error fetching filter data:', err);
@@ -98,7 +151,8 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
       filters.priceRange?.min || 0,
       filters.priceRange?.max || 2000
     ]);
-  }, [filters.priceRange]);
+    setShowInStock(filters.inStock || false);
+  }, [filters.priceRange, filters.inStock]);
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -121,11 +175,11 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
     });
   };
 
-  const handleCategoryChange = (category: string) => {
+  const handleInStockChange = (checked: boolean) => {
+    setShowInStock(checked);
     onFilterChange({
       ...filters,
-      category: filters.category === category ? undefined : category,
-      subcategory: undefined // Reset subcategory when changing category
+      inStock: checked
     });
   };
 
@@ -142,13 +196,69 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
       brand: filters.brand === brand ? undefined : brand
     });
   };
+  
+  const handleProductGroupChange = (group: string) => {
+    onFilterChange({
+      ...filters,
+      productGroup: filters.productGroup === group ? undefined : group
+    });
+  };
 
   const activeFilterCount = [
     filters.category, 
     filters.subcategory, 
-    filters.brand, 
+    filters.brand,
+    filters.productGroup,
+    filters.inStock,
     (filters.priceRange?.min !== undefined || filters.priceRange?.max !== undefined)
   ].filter(Boolean).length;
+
+  // Helper function to render a filter section
+  const renderFilterSection = (
+    title: string, 
+    sectionKey: keyof typeof expandedSections, 
+    items: string[], 
+    selectedItem: string | undefined, 
+    onChange: (item: string) => void
+  ) => {
+    if (items.length === 0) return null;
+    
+    return (
+      <div className="border-b pb-4">
+        <div 
+          className="flex justify-between items-center cursor-pointer mb-2" 
+          onClick={() => toggleSection(sectionKey)}
+        >
+          <h4 className="font-medium">{title}</h4>
+          {expandedSections[sectionKey] ? 
+            <ChevronUp className="h-4 w-4" /> : 
+            <ChevronDown className="h-4 w-4" />
+          }
+        </div>
+        
+        {expandedSections[sectionKey] && (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item} className="flex items-center">
+                <Checkbox 
+                  id={`${sectionKey}-${item}`} 
+                  checked={selectedItem === item}
+                  onCheckedChange={() => onChange(item)}
+                  className="mr-2"
+                />
+                <label 
+                  htmlFor={`${sectionKey}-${item}`} 
+                  className={`text-sm ${selectedItem === item ? "font-medium" : ""}`}
+                >
+                  {item}
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="bg-white p-4 rounded-lg border border-art-sand">
@@ -188,103 +298,41 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
       
       {(isOpen || window.innerWidth >= 1024) && (
         <div className="space-y-6">
-          {/* Categories Section */}
-          <div className="border-b pb-4">
-            <div 
-              className="flex justify-between items-center cursor-pointer mb-2" 
-              onClick={() => toggleSection('categories')}
-            >
-              <h4 className="font-medium">Kategorier</h4>
-              {expandedSections.categories ? 
-                <ChevronUp className="h-4 w-4" /> : 
-                <ChevronDown className="h-4 w-4" />
-              }
-            </div>
-            
-            {expandedSections.categories && (
-              <div className="space-y-3">
-                {availableCategories.length > 0 ? (
-                  availableCategories.map((category) => (
-                    <div key={category.name} className="space-y-1">
-                      <div className="flex items-center">
-                        <Checkbox 
-                          id={category.name} 
-                          checked={filters.category === category.name}
-                          onCheckedChange={() => handleCategoryChange(category.name)}
-                          className="mr-2"
-                        />
-                        <label 
-                          htmlFor={category.name} 
-                          className={`text-sm ${filters.category === category.name ? "font-medium" : ""}`}
-                        >
-                          {category.name}
-                        </label>
-                      </div>
-                      
-                      {filters.category === category.name && category.subcategories.length > 0 && (
-                        <div className="ml-6 space-y-1 mt-1">
-                          {category.subcategories.map((subcategory) => (
-                            <div key={subcategory} className="flex items-center">
-                              <Checkbox 
-                                id={subcategory} 
-                                checked={filters.subcategory === subcategory}
-                                onCheckedChange={() => handleSubcategoryChange(subcategory)}
-                                className="mr-2"
-                              />
-                              <label 
-                                htmlFor={subcategory} 
-                                className={`text-sm ${filters.subcategory === subcategory ? "font-medium" : ""}`}
-                              >
-                                {subcategory}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : categories.map((category) => (
-                  <div key={category.name} className="space-y-1">
-                    <div className="flex items-center">
-                      <Checkbox 
-                        id={category.name} 
-                        checked={filters.category === category.name}
-                        onCheckedChange={() => handleCategoryChange(category.name)}
-                        className="mr-2"
-                      />
-                      <label 
-                        htmlFor={category.name} 
-                        className={`text-sm ${filters.category === category.name ? "font-medium" : ""}`}
-                      >
-                        {category.name}
-                      </label>
-                    </div>
-                    
-                    {filters.category === category.name && (
-                      <div className="ml-6 space-y-1 mt-1">
-                        {category.subcategories.map((subcategory) => (
-                          <div key={subcategory} className="flex items-center">
-                            <Checkbox 
-                              id={subcategory} 
-                              checked={filters.subcategory === subcategory}
-                              onCheckedChange={() => handleSubcategoryChange(subcategory)}
-                              className="mr-2"
-                            />
-                            <label 
-                              htmlFor={subcategory} 
-                              className={`text-sm ${filters.subcategory === subcategory ? "font-medium" : ""}`}
-                            >
-                              {subcategory}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Paint Types Section */}
+          {renderFilterSection(
+            'Färgtyp / Målarteknik', 
+            'paintTypes', 
+            availableFilters.paintTypes,
+            filters.subcategory,
+            handleSubcategoryChange
+          )}
+          
+          {/* Brush Types Section */}
+          {renderFilterSection(
+            'Penslar', 
+            'brushTypes', 
+            availableFilters.brushTypes,
+            filters.subcategory,
+            handleSubcategoryChange
+          )}
+          
+          {/* Paper Types Section */}
+          {renderFilterSection(
+            'Papper', 
+            'paperTypes', 
+            availableFilters.paperTypes,
+            filters.subcategory,
+            handleSubcategoryChange
+          )}
+          
+          {/* Product Groups Section */}
+          {renderFilterSection(
+            'Produktgrupp', 
+            'productGroups', 
+            availableFilters.productGroups,
+            filters.productGroup,
+            handleProductGroupChange
+          )}
           
           {/* Price Range Section */}
           <div className="border-b pb-4">
@@ -345,40 +393,41 @@ const ProductFilters: React.FC<ProductFiltersProps> = ({
           </div>
           
           {/* Brands Section */}
+          {renderFilterSection(
+            'Varumärke', 
+            'brands', 
+            availableFilters.brands,
+            filters.brand,
+            handleBrandChange
+          )}
+          
+          {/* In Stock Section */}
           <div className="pb-2">
             <div 
               className="flex justify-between items-center cursor-pointer mb-2" 
-              onClick={() => toggleSection('brands')}
+              onClick={() => toggleSection('inStock')}
             >
-              <h4 className="font-medium">Varumärken</h4>
-              {expandedSections.brands ? 
+              <h4 className="font-medium">Lagerstatus</h4>
+              {expandedSections.inStock ? 
                 <ChevronUp className="h-4 w-4" /> : 
                 <ChevronDown className="h-4 w-4" />
               }
             </div>
             
-            {expandedSections.brands && (
-              <div className="space-y-2">
-                {availableBrands.length > 0 ? availableBrands.map((brand) => (
-                  <div key={brand} className="flex items-center">
-                    <Checkbox 
-                      id={`brand-${brand}`} 
-                      checked={filters.brand === brand}
-                      onCheckedChange={() => handleBrandChange(brand)}
-                      className="mr-2"
-                    />
-                    <label 
-                      htmlFor={`brand-${brand}`} 
-                      className={`text-sm ${filters.brand === brand ? "font-medium" : ""}`}
-                    >
-                      {brand}
-                    </label>
-                  </div>
-                )) : (
-                  <div className="text-sm text-muted-foreground">
-                    Inga varumärken hittades
-                  </div>
-                )}
+            {expandedSections.inStock && (
+              <div className="flex items-center">
+                <Checkbox 
+                  id="in-stock-filter" 
+                  checked={showInStock}
+                  onCheckedChange={handleInStockChange}
+                  className="mr-2"
+                />
+                <label 
+                  htmlFor="in-stock-filter" 
+                  className={`text-sm ${showInStock ? "font-medium" : ""}`}
+                >
+                  Visa endast produkter i lager
+                </label>
               </div>
             )}
           </div>

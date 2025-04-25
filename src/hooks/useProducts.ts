@@ -1,172 +1,123 @@
 
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { cleanSupplierName } from '@/utils/productCategorization';
+import { supabase } from "@/integrations/supabase/client";
 
-export type FilterOptions = {
+export interface FilterOptions {
   category?: string;
   subcategory?: string;
   brand?: string;
+  productGroup?: string;
+  search?: string;
   priceRange?: {
     min?: number;
     max?: number;
   };
-  search?: string;
   sortBy?: string;
   page?: number;
   limit?: number;
-};
+  inStock?: boolean;
+}
 
 export const useProducts = (filters: FilterOptions = {}) => {
-  const { 
-    category, 
-    subcategory, 
-    brand, 
-    priceRange, 
-    search, 
-    sortBy = 'relevans',
-    page = 1,
-    limit = 24
-  } = filters;
-
-  // Calculate offset for pagination
-  const offset = (page - 1) * limit;
+  const fetchProducts = async () => {
+    try {
+      // Start with base query
+      let query = supabase
+        .from('products')
+        .select('*', { count: 'exact' });
+      
+      // Apply filters if they exist
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+      
+      if (filters.subcategory) {
+        query = query.eq('variant_type', filters.subcategory);
+      }
+      
+      if (filters.brand) {
+        query = query.ilike('supplier', `%${filters.brand}%`);
+      }
+      
+      if (filters.productGroup) {
+        query = query.eq('variant_name', filters.productGroup);
+      }
+      
+      if (filters.search) {
+        query = query.or(`name.ilike.%${filters.search}%,article_number.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      }
+      
+      if (filters.priceRange?.min !== undefined) {
+        query = query.gte('price', filters.priceRange.min);
+      }
+      
+      if (filters.priceRange?.max !== undefined) {
+        query = query.lte('price', filters.priceRange.max);
+      }
+      
+      if (filters.inStock) {
+        query = query.gt('stock_status', 0);
+      }
+      
+      // Apply sorting
+      if (filters.sortBy) {
+        switch (filters.sortBy) {
+          case 'price-asc':
+            query = query.order('price', { ascending: true });
+            break;
+          case 'price-desc':
+            query = query.order('price', { ascending: false });
+            break;
+          case 'name-asc':
+            query = query.order('name', { ascending: true });
+            break;
+          case 'name-desc':
+            query = query.order('name', { ascending: false });
+            break;
+          case 'newest':
+            query = query.order('created_at', { ascending: false });
+            break;
+          case 'relevans':
+          default:
+            // For relevance, we don't apply specific sorting
+            // If there's search, products matching search will be ranked higher
+            query = query.order('name', { ascending: true });
+            break;
+        }
+      } else {
+        // Default sorting
+        query = query.order('name', { ascending: true });
+      }
+      
+      // Apply pagination
+      const page = filters.page || 1;
+      const limit = filters.limit || 24;
+      const start = (page - 1) * limit;
+      const end = start + limit - 1;
+      
+      query = query.range(start, end);
+      
+      // Execute the query
+      const { data, error, count } = await query;
+      
+      if (error) {
+        console.error("Error fetching products:", error);
+        throw error;
+      }
+      
+      return {
+        data,
+        count: count || 0
+      };
+    } catch (error) {
+      console.error("Error in fetchProducts:", error);
+      throw error;
+    }
+  };
 
   return useQuery({
     queryKey: ['products', filters],
-    queryFn: async () => {
-      console.log("Fetching products with filters:", filters);
-      
-      // First query to get the total count
-      let countQuery = supabase
-        .from('products')
-        .select('id', { count: 'exact', head: true });
-
-      // Main query to get the products with filtering
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          master_product:master_product_id(*)
-        `);
-
-      // Apply filters to both queries
-      if (category) {
-        console.log("Filtering by category:", category);
-        countQuery = countQuery.eq('category', category);
-        query = query.eq('category', category);
-      }
-
-      if (subcategory) {
-        console.log("Filtering by subcategory:", subcategory);
-        // Look for subcategory in name or description
-        const subcategoryFilter = `%${subcategory}%`;
-        countQuery = countQuery.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
-        query = query.or(`name.ilike.${subcategoryFilter},description.ilike.${subcategoryFilter}`);
-      }
-
-      if (brand) {
-        console.log("Filtering by brand/supplier:", brand);
-        // Brand might be stored as full name with suffix, like "Winsor & Newton - Konstnärsmaterial"
-        const cleanedBrand = brand.replace(/\s-\s.*$/, '');
-        countQuery = countQuery.ilike('supplier', `%${cleanedBrand}%`);
-        query = query.ilike('supplier', `%${cleanedBrand}%`);
-      }
-
-      if (priceRange?.min !== undefined) {
-        console.log("Filtering by min price:", priceRange.min);
-        countQuery = countQuery.gte('price', priceRange.min);
-        query = query.gte('price', priceRange.min);
-      }
-
-      if (priceRange?.max !== undefined) {
-        console.log("Filtering by max price:", priceRange.max);
-        countQuery = countQuery.lte('price', priceRange.max);
-        query = query.lte('price', priceRange.max);
-      }
-
-      if (search) {
-        console.log("Searching for:", search);
-        const searchTerm = `%${search}%`;
-        const searchFilter = `name.ilike.${searchTerm},article_number.ilike.${searchTerm},description.ilike.${searchTerm},supplier.ilike.${searchTerm},category.ilike.${searchTerm}`;
-        countQuery = countQuery.or(searchFilter);
-        query = query.or(searchFilter);
-      }
-
-      // Apply sorting
-      switch (sortBy) {
-        case 'lagstPris':
-          query = query.order('price', { ascending: true });
-          break;
-        case 'hogstPris':
-          query = query.order('price', { ascending: false });
-          break;
-        case 'nyast':
-          query = query.order('created_at', { ascending: false });
-          break;
-        case 'popularitet':
-          // Fallback to stock_status as a proxy for popularity
-          query = query.order('stock_status', { ascending: false });
-          break;
-        case 'namn_asc':
-          query = query.order('name', { ascending: true });
-          break;
-        case 'namn_desc':
-          query = query.order('name', { ascending: false });
-          break;
-        case 'relevans':
-        default:
-          // Default sorting logic
-          if (search) {
-            // If searching, relevance is determined by exact matches first
-            query = query.order('name', { ascending: true });
-          } else {
-            query = query.order('created_at', { ascending: false });
-          }
-          break;
-      }
-
-      // Apply pagination to the main query only
-      query = query.range(offset, offset + limit - 1);
-
-      console.log("Executing queries...");
-      // Execute both queries
-      const [countResult, dataResult] = await Promise.all([
-        countQuery,
-        query
-      ]);
-
-      if (countResult.error) {
-        console.error("Count query error:", countResult.error);
-        throw countResult.error;
-      }
-
-      if (dataResult.error) {
-        console.error("Data query error:", dataResult.error);
-        throw dataResult.error;
-      }
-
-      // Clean supplier names for display
-      if (dataResult.data) {
-        dataResult.data = dataResult.data.map(product => ({
-          ...product,
-          displaySupplier: cleanSupplierName(product.supplier)
-        }));
-      }
-
-      console.log("Query results:", {
-        count: countResult.count,
-        dataLength: dataResult.data?.length,
-        filters
-      });
-
-      return {
-        data: dataResult.data,
-        count: countResult.count || 0,
-        page,
-        limit,
-        totalPages: Math.ceil((countResult.count || 0) / limit)
-      };
-    }
+    queryFn: fetchProducts
   });
 };

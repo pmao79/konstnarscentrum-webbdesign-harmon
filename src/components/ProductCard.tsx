@@ -13,6 +13,7 @@ interface ProductCardProps {
     id: string;
     name: string;
     category: string | null;
+    variant_type: string | null;
     price: number;
     image_url: string | null;
     stock_status: number;
@@ -50,8 +51,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   // Extract brand/supplier name for display
   const displaySupplier = product.displaySupplier || 
-    (product.supplier ? cleanSupplierName(product.supplier) : 
-    product.category || "Övrigt");
+    (product.supplier ? cleanSupplierName(product.supplier) : "");
+  
+  // Extract subcategory/variant_type for display
+  const displayCategory = product.variant_type || product.category || "Övrigt";
   
   return (
     <Link to={`/produkter/${product.id}`}>
@@ -72,6 +75,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               </span>
             </div>
           </div>
+          {displayCategory && (
+            <span className="text-xs text-muted-foreground block mt-1">{displayCategory}</span>
+          )}
           <h3 className="font-medium mt-1 mb-1 line-clamp-2 min-h-[2.5rem]">{product.name}</h3>
           <div className="text-xs text-muted-foreground mb-2">Art.nr: {product.article_number}</div>
           <div className="flex justify-between items-center mt-auto">
