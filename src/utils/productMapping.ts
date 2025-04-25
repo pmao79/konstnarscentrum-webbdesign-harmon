@@ -41,6 +41,6 @@ export const mapProductData = (product: any, columnMapping: keyof ColumnMappingT
     supplier
   };
   
-  // Use our categorization function to enhance the product data
+  // Return the mapped product directly rather than a complex object
   return categorizeProduct(mappedProduct);
 };

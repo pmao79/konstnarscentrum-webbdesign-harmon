@@ -1,4 +1,3 @@
-
 import { useToast } from "@/hooks/use-toast";
 import { processExcelFile } from '@/utils/excelProcessing';
 import { groupProductsByMaster } from '@/utils/productVariants';
@@ -29,12 +28,10 @@ export const useProductImport = () => {
     setErrorMessage
   } = useImportProgress();
 
-  // Förbättrad funktion för att verifiera databehörighet med mer detaljerad loggning
   const verifyDatabaseAccess = async () => {
     try {
       console.log('Verifierar databasrättigheter...');
       
-      // Kontrollera läsrättigheter
       const { data: readData, error: readError } = await supabase
         .from('products')
         .select('id')
@@ -50,8 +47,6 @@ export const useProductImport = () => {
       
       console.log('Läsrättigheter verifierade.');
       
-      // Testa skrivbehörighet med en temporär produkt som sedan tas bort
-      // Detta är ett pålitligare sätt att verifiera skrivbehörighet
       const testProduct = {
         name: 'TEST_PRODUCT_DELETE_ME',
         article_number: `TEST_${Date.now()}`,
@@ -59,7 +54,6 @@ export const useProductImport = () => {
         source: 'excel_test'
       };
       
-      // Försök skapa en testprodukt
       const { data: insertData, error: insertError } = await supabase
         .from('products')
         .insert(testProduct)
@@ -75,7 +69,6 @@ export const useProductImport = () => {
       
       console.log('Skrivbehörighet verifierad.');
       
-      // Ta bort testprodukten
       if (insertData && insertData[0]?.id) {
         await supabase.from('products').delete().eq('id', insertData[0].id);
       }
@@ -101,14 +94,13 @@ export const useProductImport = () => {
       setImportProgress(null);
       setErrorMessage(null);
       
-      // Förbättrad databehörighetskontroll
       const accessCheck = await verifyDatabaseAccess();
       if (!accessCheck.success) {
         throw new Error(accessCheck.message || "Kan inte ansluta till databasen eller saknar behörighet. Kontrollera dina behörigheter.");
       }
       
       setUploadProgress(20);
-      // Bearbeta Excel-fil
+      
       const products = await processExcelFile(file);
       
       if (!products || products.length === 0) {
@@ -117,7 +109,6 @@ export const useProductImport = () => {
 
       console.log("Totalt antal produkter hittade:", products.length);
       
-      // Grundläggande validering
       const currentMapping = COLUMN_MAPPINGS[columnMapping];
       let firstProduct = products[0];
       let missingColumns = [];
@@ -133,7 +124,6 @@ export const useProductImport = () => {
         throw new Error(`Saknade kolumner i Excel-filen: ${missingColumns.join(", ")}. Kontrollera formatet och kolumnnamnen.`);
       }
       
-      // Detaljerad validering
       const validationErrors = validateProducts(products, currentMapping);
       const progressData: ImportProgress = {
         total: products.length,
@@ -158,10 +148,13 @@ export const useProductImport = () => {
       
       setUploadProgress(40);
       
-      // Mappa produkter
-      const mappedProducts = products
+      const mappedProductResults = products
         .map(product => mapProductData(product, columnMapping, currentMapping))
         .filter(Boolean);
+      
+      const mappedProducts = mappedProductResults.map(result => 
+        typeof result === 'object' && 'product' in result ? result.product : result
+      );
       
       if (mappedProducts.length === 0) {
         throw new Error("Inga giltiga produkter att importera efter validering");
@@ -169,23 +162,18 @@ export const useProductImport = () => {
       
       setUploadProgress(60);
       
-      // Gruppera produkter
       const groupedProducts = groupProductsByMaster(mappedProducts);
       console.log("Grupperade produkter:", groupedProducts.length);
       
-      // Ny array för att spåra varje specifikt fel
-      const specificErrors = [];
+      let specificErrors = [];
       
-      // Bearbeta varje grupp med förbättrad felhantering
       for (const group of groupedProducts) {
         const { masterName, variants } = group;
         console.log(`Bearbetar grupp: ${masterName} med ${variants.length} varianter`);
         
         try {
-          // Fix for TypeScript error: Use Number() to ensure numeric types for calculations
           const averagePrice = variants.reduce((sum: number, v: any) => sum + Number(v.price), 0) / variants.length;
           
-          // Skapa huvudprodukt
           const masterProduct = await saveMasterProduct(
             masterName, 
             averagePrice, 
@@ -195,21 +183,18 @@ export const useProductImport = () => {
           
           console.log("Skapade huvudprodukt:", masterProduct);
           
-          // Spara varianter med förbättrad felhantering
           const saveResult = await saveProductVariants(variants, masterProduct.id, 'excel');
           console.log(`Satsresultat: Lyckade=${saveResult.successCount}, Misslyckade=${saveResult.failedCount}`);
           
           successCount += saveResult.successCount;
           failedCount += saveResult.failedCount;
           
-          // Samla specifika fel för detaljerad felsökning
           if (saveResult.errors && saveResult.errors.length > 0) {
             specificErrors.push(...saveResult.errors);
           }
         } catch (error: any) {
           console.error('Fel vid bearbetning av produktgrupp:', error);
           
-          // Kontrollera efter specifika feltyper
           if (error.message && error.message.includes('permission denied')) {
             throw new Error("Behörighetsfel: Saknar behörighet att skriva till produkttabellen. Kontakta administratören.");
           }
@@ -218,7 +203,6 @@ export const useProductImport = () => {
             throw new Error("Behörighetsfel: Åtgärden blockeras av row-level security. Kontakta administratören.");
           }
           
-          // Spåra detta specifika fel
           specificErrors.push({
             group: masterName,
             message: error.message,
@@ -230,7 +214,6 @@ export const useProductImport = () => {
       }
       
       if (successCount === 0) {
-        // Ge mer detaljerad information om felen
         let detailMsg = "Detta kan bero på databehörigheter eller att det fanns konflikter i artikelnummer.";
         
         if (specificErrors.length > 0) {
@@ -240,7 +223,6 @@ export const useProductImport = () => {
             return acc;
           }, {});
           
-          // Hitta den vanligaste feltypen
           const mostCommonError = Object.entries(commonErrors)
             .sort((a, b) => Number(b[1]) - Number(a[1]))[0];
           
@@ -257,13 +239,15 @@ export const useProductImport = () => {
         throw new Error(`${errorMsg} ${detailMsg}`);
       }
       
-      // Logga importresultat
+      const supplierToLog = mappedProducts[0]?.supplier || 
+                           (mappedProductResults[0]?.product?.supplier) || 
+                           'excel-import';
+                           
       await saveImportLog({
         fileName: file.name,
         successCount,
         failedCount,
-        // Fix TypeScript error: Access supplier from first mapped product, not the categorizeProduct result
-        supplier: mappedProducts[0]?.supplier
+        supplier: supplierToLog
       });
       
       setUploadProgress(100);
@@ -286,10 +270,8 @@ export const useProductImport = () => {
     } catch (error: any) {
       console.error('Fel vid bearbetning av Excel-fil:', error);
       
-      // Förbättrad felhantering med mer specifika meddelanden
       let errorMsg = error.message || "Ett fel uppstod vid bearbetning av Excel-filen.";
       
-      // Kontrollera efter vanliga databasfel
       if (error.code) {
         switch (error.code) {
           case "42501": 
