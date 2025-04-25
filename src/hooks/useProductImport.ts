@@ -239,9 +239,7 @@ export const useProductImport = () => {
         throw new Error(`${errorMsg} ${detailMsg}`);
       }
       
-      const supplierToLog = mappedProducts[0]?.supplier || 
-                           (mappedProductResults[0]?.product?.supplier) || 
-                           'excel-import';
+      const supplierToLog = mappedProducts[0]?.supplier || 'excel-import';
                            
       await saveImportLog({
         fileName: file.name,

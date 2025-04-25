@@ -39,7 +39,7 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     inStock: true
   });
 
-  // Fetch unique brands from database
+  // Fetch unique brands from database (supplier field)
   const { data: brandsData } = useQuery({
     queryKey: ['uniqueBrands'],
     queryFn: async () => {
@@ -64,6 +64,54 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
       return uniqueBrands as string[];
     }
   });
+  
+  // Fetch unique product groups
+  const { data: productGroupsData } = useQuery({
+    queryKey: ['uniqueProductGroups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('variant_name')
+        .not('variant_name', 'is', null)
+        .order('variant_name');
+      
+      if (error) throw error;
+      
+      const uniqueGroups = Array.from(
+        new Set(
+          data
+            .map(item => item.variant_name)
+            .filter(Boolean)
+        )
+      ).sort();
+      
+      return uniqueGroups as string[];
+    }
+  });
+
+  // Fetch unique subcategories
+  const { data: subcategoriesData } = useQuery({
+    queryKey: ['uniqueSubcategories'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('variant_type')
+        .not('variant_type', 'is', null)
+        .order('variant_type');
+      
+      if (error) throw error;
+      
+      const uniqueSubcategories = Array.from(
+        new Set(
+          data
+            .map(item => item.variant_type)
+            .filter(Boolean)
+        )
+      ).sort();
+      
+      return uniqueSubcategories as string[];
+    }
+  });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -72,30 +120,27 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
     }));
   };
 
-  // Extract unique subcategories by type
-  const paintTypes = categories
-    .flatMap(cat => cat.subcategories)
-    .filter(subcat => 
-      subcat.toLowerCase().includes('färg') || 
-      subcat.toLowerCase().includes('akvarell') || 
-      subcat.toLowerCase().includes('gouache') ||
-      subcat.toLowerCase().includes('tempera')
-    );
+  // Extract subcategories based on type
+  const subcategories = subcategoriesData || [];
+  
+  // Filter subcategories by type
+  const paintTypes = subcategories.filter(subcat => 
+    subcat.toLowerCase().includes('färg') || 
+    subcat.toLowerCase().includes('akvarell') || 
+    subcat.toLowerCase().includes('gouache') ||
+    subcat.toLowerCase().includes('tempera')
+  );
 
-  const brushTypes = categories
-    .flatMap(cat => cat.subcategories)
-    .filter(subcat => 
-      subcat.toLowerCase().includes('pensel') || 
-      subcat.toLowerCase().includes('borste')
-    );
+  const brushTypes = subcategories.filter(subcat => 
+    subcat.toLowerCase().includes('pensel') || 
+    subcat.toLowerCase().includes('borste')
+  );
 
-  const paperTypes = categories
-    .flatMap(cat => cat.subcategories)
-    .filter(subcat => 
-      subcat.toLowerCase().includes('papper') || 
-      subcat.toLowerCase().includes('block') ||
-      subcat.toLowerCase().includes('canvas')
-    );
+  const paperTypes = subcategories.filter(subcat => 
+    subcat.toLowerCase().includes('papper') || 
+    subcat.toLowerCase().includes('block') ||
+    subcat.toLowerCase().includes('canvas')
+  );
 
   const activeFilterCount = [
     filters.subcategory,
@@ -150,34 +195,40 @@ const FilterContainer: React.FC<FilterContainerProps> = ({
 
       {(isOpen || window.innerWidth >= 1024) && (
         <div className="space-y-6">
-          <PaintTypeFilter 
-            selectedType={filters.subcategory}
-            onTypeChange={handleSubcategoryChange}
-            paintTypes={paintTypes}
-            isExpanded={expandedSections.paintTypes}
-            onToggle={() => toggleSection('paintTypes')}
-          />
+          {paintTypes.length > 0 && (
+            <PaintTypeFilter 
+              selectedType={filters.subcategory}
+              onTypeChange={handleSubcategoryChange}
+              paintTypes={paintTypes}
+              isExpanded={expandedSections.paintTypes}
+              onToggle={() => toggleSection('paintTypes')}
+            />
+          )}
           
-          <BrushTypeFilter 
-            selectedType={filters.subcategory}
-            onTypeChange={handleSubcategoryChange}
-            brushTypes={brushTypes}
-            isExpanded={expandedSections.brushTypes}
-            onToggle={() => toggleSection('brushTypes')}
-          />
+          {brushTypes.length > 0 && (
+            <BrushTypeFilter 
+              selectedType={filters.subcategory}
+              onTypeChange={handleSubcategoryChange}
+              brushTypes={brushTypes}
+              isExpanded={expandedSections.brushTypes}
+              onToggle={() => toggleSection('brushTypes')}
+            />
+          )}
           
-          <PaperTypeFilter 
-            selectedType={filters.subcategory}
-            onTypeChange={handleSubcategoryChange}
-            paperTypes={paperTypes}
-            isExpanded={expandedSections.paperTypes}
-            onToggle={() => toggleSection('paperTypes')}
-          />
+          {paperTypes.length > 0 && (
+            <PaperTypeFilter 
+              selectedType={filters.subcategory}
+              onTypeChange={handleSubcategoryChange}
+              paperTypes={paperTypes}
+              isExpanded={expandedSections.paperTypes}
+              onToggle={() => toggleSection('paperTypes')}
+            />
+          )}
           
           <ProductGroupFilter 
             selectedGroup={filters.productGroup}
             onGroupChange={(group) => onFilterChange({ ...filters, productGroup: group, page: 1 })}
-            productGroups={[...new Set(categories.map(cat => cat.name))]}
+            productGroups={productGroupsData || []}
             isExpanded={expandedSections.productGroups}
             onToggle={() => toggleSection('productGroups')}
           />

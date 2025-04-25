@@ -55,18 +55,18 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
       
       if (error) throw error;
       
-      toast.success(`${field} updated successfully`);
+      toast.success(`Uppdaterat ${field} framgångsrikt`);
       onProductsUpdated(); // Refresh data
     } catch (error) {
       console.error('Error updating product:', error);
-      toast.error(`Failed to update ${field}`);
+      toast.error(`Kunde inte uppdatera ${field}`);
     }
   };
 
   // Apply bulk edit to selected products
   const applyBulkEdit = async () => {
     if (!bulkEditField || !bulkEditValue || selectedProducts.length === 0) {
-      toast.error("Please select products, a field to edit, and a value");
+      toast.error("Vänligen välj produkter, ett fält att redigera och ett värde");
       return;
     }
 
@@ -78,7 +78,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
       
       if (error) throw error;
       
-      toast.success(`Updated ${selectedProducts.length} products`);
+      toast.success(`Uppdaterade ${selectedProducts.length} produkter`);
       setSelectedProducts([]);
       setBulkEditMode(false);
       setBulkEditField(null);
@@ -86,7 +86,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
       onProductsUpdated(); // Refresh data
     } catch (error) {
       console.error('Error bulk updating products:', error);
-      toast.error("Failed to update products");
+      toast.error("Kunde inte uppdatera produkter");
     }
   };
 
@@ -115,7 +115,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
         <div className="mb-4 p-3 bg-muted rounded-md">
           <div className="flex items-center gap-4">
             <div className="text-sm font-medium">
-              {selectedProducts.length} products selected
+              {selectedProducts.length} produkter valda
             </div>
             
             {!bulkEditMode ? (
@@ -123,7 +123,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                 size="sm" 
                 onClick={() => setBulkEditMode(true)}
               >
-                Bulk Edit
+                Massredigering
               </Button>
             ) : (
               <div className="flex flex-wrap gap-3 items-center flex-grow">
@@ -132,7 +132,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                   onValueChange={setBulkEditField}
                 >
                   <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select field to edit" />
+                    <SelectValue placeholder="Välj fält att redigera" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="category">Kategori</SelectItem>
@@ -148,7 +148,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                     onValueChange={setBulkEditValue}
                   >
                     <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder={`Select ${bulkEditField}`} />
+                      <SelectValue placeholder={`Välj ${bulkEditField}`} />
                     </SelectTrigger>
                     <SelectContent>
                       {bulkEditField === 'category' && categories.map(cat => (
@@ -174,7 +174,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                     onClick={applyBulkEdit} 
                     disabled={!bulkEditField || !bulkEditValue}
                   >
-                    Apply to {selectedProducts.length} products
+                    Använd på {selectedProducts.length} produkter
                   </Button>
                   <Button 
                     variant="outline" 
@@ -185,7 +185,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                       setBulkEditValue('');
                     }}
                   >
-                    Cancel
+                    Avbryt
                   </Button>
                 </div>
               </div>
@@ -217,7 +217,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
             {products.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-4">
-                  No products found
+                  Inga produkter hittades
                 </TableCell>
               </TableRow>
             ) : (
@@ -237,7 +237,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                       onValueChange={(value) => updateProductField(product.id, 'supplier', value)}
                     >
                       <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Select brand" />
+                        <SelectValue placeholder="Välj varumärke" />
                       </SelectTrigger>
                       <SelectContent>
                         {brands.map(brand => (
@@ -252,7 +252,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                       onValueChange={(value) => updateProductField(product.id, 'category', value)}
                     >
                       <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder="Välj kategori" />
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map(category => (
@@ -267,7 +267,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                       onValueChange={(value) => updateProductField(product.id, 'variant_type', value)}
                     >
                       <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Select subcategory" />
+                        <SelectValue placeholder="Välj underkategori" />
                       </SelectTrigger>
                       <SelectContent>
                         {subcategories.map(subcategory => (
@@ -282,7 +282,7 @@ const ProductClassificationTable: React.FC<ProductClassificationTableProps> = ({
                       onValueChange={(value) => updateProductField(product.id, 'variant_name', value)}
                     >
                       <SelectTrigger className="w-[140px]">
-                        <SelectValue placeholder="Select product group" />
+                        <SelectValue placeholder="Välj produktgrupp" />
                       </SelectTrigger>
                       <SelectContent>
                         {productGroups.map(group => (

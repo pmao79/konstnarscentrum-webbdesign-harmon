@@ -11,22 +11,36 @@ export const mapProductData = (product: any, columnMapping: keyof ColumnMappingT
   let supplier = product[currentMapping.supplier] || null;
   let description = '';
   let imageUrl = null;
+  let variantType = null;
+  let variantName = null;
   
   if (columnMapping === "swedish") {
+    // Handle stock status (förp)
     stockStatus = product[currentMapping.packaging] 
       ? parseInt(String(product[currentMapping.packaging]).replace(/\s/g, '')) || 0 
       : 0;
+    
     description = product[currentMapping.misc] || '';
     
+    // In Swedish mapping, the brand/supplier might contain category info
     const brandParts = supplier ? String(supplier).split(' - ') : [];
     if (brandParts.length > 1) {
       category = brandParts[0].trim();
     }
+
+    // Map variant_type to underkategori field if available
+    variantType = product["Underkategori"] || null;
+    
+    // Map variant_name to produktgrupp field if available
+    variantName = product["Produktgrupp"] || null;
+    
   } else if (columnMapping === "english") {
     stockStatus = product[currentMapping.stockStatus] || 0;
     description = product[currentMapping.description] || '';
     category = product[currentMapping.category] || null;
     imageUrl = product[currentMapping.imageUrl] || null;
+    variantType = product["Subcategory"] || null;
+    variantName = product["ProductGroup"] || null;
   }
   
   // Create a base product object
@@ -38,7 +52,9 @@ export const mapProductData = (product: any, columnMapping: keyof ColumnMappingT
     stock_status: stockStatus,
     image_url: imageUrl,
     category,
-    supplier
+    supplier,
+    variant_type: variantType,
+    variant_name: variantName
   };
   
   // Return the mapped product directly rather than a complex object

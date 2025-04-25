@@ -1,80 +1,80 @@
-
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Settings, 
+  Tag as TagIcon, 
+  ShoppingBag, 
   Users, 
-  FileSpreadsheet,
-  BarChart,
-  Menu,
-  Tag,
-  ListFilter
-} from "lucide-react";
-import { Link, useLocation } from 'react-router-dom';
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarTrigger
+  Settings 
+} from 'lucide-react';
+import { 
+  Sidebar, 
+  SidebarContent, 
+  SidebarHeader, 
+  SidebarMenu, 
+  SidebarMenuItem, 
+  SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from '@/hooks/useAuth';
 
 const AdminSidebar = () => {
-  const location = useLocation();
-  const menuItems = [
-    { icon: <LayoutDashboard size={18} />, label: 'Översikt', path: '/admin' },
-    { icon: <Package size={18} />, label: 'Produkter', path: '/admin/products' },
-    { icon: <ListFilter size={18} />, label: 'Produktklassificering', path: '/admin/classification' },
-    { icon: <Tag size={18} />, label: 'Kategorier', path: '/admin/categories' },
-    { icon: <FileSpreadsheet size={18} />, label: 'Importer', path: '/admin/imports' },
-    { icon: <ShoppingCart size={18} />, label: 'Ordrar', path: '/admin/orders' },
-    { icon: <Users size={18} />, label: 'Kunder', path: '/admin/customers' },
-    { icon: <BarChart size={18} />, label: 'Rapporter', path: '/admin/reports' },
-    { icon: <Settings size={18} />, label: 'Inställningar', path: '/admin/settings' },
-  ];
-
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
+  const { user } = useAuth();
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-0">
-        <div className="h-16 border-b bg-background px-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <SidebarTrigger>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SidebarTrigger>
-            <span className="text-lg font-medium">SKC Admin</span>
-          </div>
-        </div>
-      </SidebarHeader>
       <SidebarContent>
-        <nav className="p-2">
-          <ul className="space-y-1">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <Link 
-                  to={item.path} 
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                    isActive(item.path) 
-                      ? "bg-primary text-primary-foreground" 
-                      : "hover:bg-accent"
-                  )}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SidebarHeader>
+          <Link to="/admin" className="flex items-center space-x-2">
+            <Avatar>
+              <AvatarImage src={user?.image} alt={user?.name} />
+              <AvatarFallback>{user?.name?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <span className="font-bold">{user?.name}</span>
+          </Link>
+        </SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link to="/admin">
+                <LayoutDashboard className="h-4 w-4" />
+                <span>Dashboard</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link to="/admin/produkter">
+                <ShoppingBag className="h-4 w-4" />
+                <span>Produkter</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link to="/admin/produktklassificering">
+                <TagIcon className="h-4 w-4" />
+                <span>Produktklassificering</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link to="/admin/anvandare">
+                <Users className="h-4 w-4" />
+                <span>Användare</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild>
+              <Link to="/admin/installningar">
+                <Settings className="h-4 w-4" />
+                <span>Inställningar</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarContent>
     </Sidebar>
   );
