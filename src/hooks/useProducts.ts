@@ -1,121 +1,61 @@
+import { useState, useEffect } from 'react';
+import { ProductWithRelations, ProductFilters, AvailableFilters } from '@/types/product';
+import { getProducts, getAvailableFilters } from '@/api/products';
+import { useToast } from '@/components/ui/use-toast';
 
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from "@/integrations/supabase/client";
+// Hook för att hantera produktdata och filter
+export function useProducts(filters: ProductFilters = {}) {
+  const { toast } = useToast();
+  const [products, setProducts] = useState<ProductWithRelations[]>([]);
+  const [availableFilters, setAvailableFilters] = useState<AvailableFilters>({
+    kategorier: [],
+    underkategorier: [],
+    varumärken: [],
+    produktgrupper: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export interface FilterOptions {
-  subcategory?: string;
-  brand?: string;
-  productGroup?: string;
-  search?: string;
-  priceRange?: {
-    min?: number;
-    max?: number;
-  };
-  sortBy?: string;
-  page?: number;
-  limit?: number;
-  inStock?: boolean;
-}
+  // Hämta produkter och filter från API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [productsData, filtersData] = await Promise.all([
+          getProducts(filters),
+          getAvailableFilters()
+        ]);
+        setProducts(productsData);
+        setAvailableFilters(filtersData);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Ett okänt fel uppstod';
+        console.error('Fel vid hämtning av data:', err);
+        setError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Fel",
+          description: "Kunde inte hämta produkter. Försök igen senare."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
 
-export const useProducts = (filters: FilterOptions = {}) => {
-  const fetchProducts = async () => {
-    try {
-      // Start with base query
-      let query = supabase
-        .from('products')
-        .select('*', { count: 'exact' });
-      
-      // Apply filters if they exist
-      if (filters.subcategory) {
-        // Map to underkategori field
-        query = query.eq('variant_type', filters.subcategory);
-      }
-      
-      if (filters.brand) {
-        // Map to varumarke field
-        query = query.eq('supplier', filters.brand);
-      }
-      
-      if (filters.productGroup) {
-        // Map to produktgrupp field
-        query = query.eq('variant_name', filters.productGroup);
-      }
-      
-      if (filters.search) {
-        query = query.or(`name.ilike.%${filters.search}%,article_number.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
-      }
-      
-      if (filters.priceRange?.min !== undefined) {
-        query = query.gte('price', filters.priceRange.min);
-      }
-      
-      if (filters.priceRange?.max !== undefined) {
-        query = query.lte('price', filters.priceRange.max);
-      }
-      
-      if (filters.inStock) {
-        // Map to förp field
-        query = query.gt('stock_status', 0);
-      }
-      
-      // Apply sorting
-      if (filters.sortBy) {
-        switch (filters.sortBy) {
-          case 'price-asc':
-            query = query.order('price', { ascending: true });
-            break;
-          case 'price-desc':
-            query = query.order('price', { ascending: false });
-            break;
-          case 'name-asc':
-            query = query.order('name', { ascending: true });
-            break;
-          case 'name-desc':
-            query = query.order('name', { ascending: false });
-            break;
-          case 'newest':
-            query = query.order('created_at', { ascending: false });
-            break;
-          case 'relevans':
-          default:
-            // For relevance, we don't apply specific sorting
-            // If there's search, products matching search will be ranked higher
-            query = query.order('name', { ascending: true });
-            break;
-        }
-      } else {
-        // Default sorting
-        query = query.order('name', { ascending: true });
-      }
-      
-      // Apply pagination
-      const page = filters.page || 1;
-      const limit = filters.limit || 24;
-      const start = (page - 1) * limit;
-      const end = start + limit - 1;
-      
-      query = query.range(start, end);
-      
-      // Execute the query
-      const { data, error, count } = await query;
-      
-      if (error) {
-        console.error("Error fetching products:", error);
-        throw error;
-      }
-      
-      return {
-        data,
-        count: count || 0
-      };
-    } catch (error) {
-      console.error("Error in fetchProducts:", error);
-      throw error;
+    fetchData();
+  }, [filters, toast]);
+
+  return {
+    products,
+    availableFilters,
+    loading,
+    error,
+    // Hjälpfunktion för att filtrera underkategorier baserat på vald kategori
+    getFilteredSubcategories: (kategoriId: string | undefined) => {
+      if (!kategoriId) return [];
+      return availableFilters.underkategorier.filter(
+        uk => uk.kategoriId === kategoriId
+      );
     }
   };
-
-  return useQuery({
-    queryKey: ['products', filters],
-    queryFn: fetchProducts
-  });
-};
+}

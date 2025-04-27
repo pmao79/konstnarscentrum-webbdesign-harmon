@@ -1,3 +1,4 @@
+// ProductCard component will be implemented here
 
 import React from 'react';
 import { Link } from 'react-router-dom';

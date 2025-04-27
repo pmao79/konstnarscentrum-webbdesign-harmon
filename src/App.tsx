@@ -1,43 +1,62 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Products from "./pages/Products";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import NotFound from "./pages/NotFound";
-import Dashboard from "./pages/admin/Dashboard";
-import AdminProducts from "./pages/admin/Products";
-import AdminImports from "./pages/admin/Imports";
-import AdminCategories from "./pages/admin/Categories";
-import ProductClassification from "./pages/admin/ProductClassification";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import AdminLayout from '@/components/AdminLayout';
+import AdminLogin from '@/pages/admin/login';
+import AdminProducts from '@/pages/admin/Products';
+import AdminProductClassification from '@/pages/admin/products/classify';
+import AdminCategories from '@/pages/admin/Categories';
+import AdminSubcategories from '@/pages/admin/subcategories';
+import AdminBrands from '@/pages/admin/brands';
+import AdminProductGroups from '@/pages/admin/product-groups';
+import AdminOrders from '@/pages/admin/orders';
+import AdminSettings from '@/pages/admin/settings';
+import AdminDashboard from '@/pages/admin/Dashboard';
+import Home from '@/pages/Home';
+import Products from '@/pages/Products';
+import Product from '@/pages/Product';
+import Cart from '@/pages/Cart';
+import Checkout from '@/pages/Checkout';
+import OrderConfirmation from '@/pages/OrderConfirmation';
+import NotFound from '@/pages/NotFound';
 
-const queryClient = new QueryClient();
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Public routes */}
+        <Route path="/" element={<Home />} />
+        <Route path="/produkter" element={<Products />} />
+        <Route path="/produkter/:id" element={<Product />} />
+        <Route path="/kundvagn" element={<Cart />} />
+        <Route path="/kassa" element={<Checkout />} />
+        <Route path="/order-bekraftelse" element={<OrderConfirmation />} />
+        
+        {/* Admin routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="products" element={<AdminProducts />} />
+          <Route path="products/classify" element={<AdminProductClassification />} />
+          <Route path="categories" element={<AdminCategories />} />
+          <Route path="subcategories" element={<AdminSubcategories />} />
+          <Route path="brands" element={<AdminBrands />} />
+          <Route path="product-groups" element={<AdminProductGroups />} />
+          <Route path="orders" element={<AdminOrders />} />
+          <Route path="settings" element={<AdminSettings />} />
+        </Route>
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+        {/* 404 route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
       <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/produkter" element={<Products />} />
-          <Route path="/om-oss" element={<About />} />
-          <Route path="/kontakt" element={<Contact />} />
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/products" element={<AdminProducts />} />
-          <Route path="/admin/imports" element={<AdminImports />} />
-          <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="/admin/classification" element={<ProductClassification />} />
-          <Route path="/admin/produktklassificering" element={<ProductClassification />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
-
-export default App;
+    </Router>
+  );
+}

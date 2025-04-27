@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +6,20 @@ import ImportHistory from '@/components/admin/ImportHistory';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from '@/components/ui/card';
+import { format } from 'date-fns';
+import { sv } from 'date-fns/locale';
+import { Loader2, ShoppingCart, TrendingUp, Calendar, BarChart } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
+import { getDashboardStats } from '@/api/admin/dashboard';
+import { DashboardStats } from '@/types/dashboard';
 
 interface ProductStats {
   totalCount: number;
@@ -16,6 +29,9 @@ interface ProductStats {
 const Dashboard = () => {
   const [productStats, setProductStats] = useState<ProductStats>({ totalCount: 0, categories: {} });
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProductStats = async () => {
@@ -54,6 +70,51 @@ const Dashboard = () => {
     
     fetchProductStats();
   }, []);
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const statsData = await getDashboardStats();
+        setStats(statsData);
+      } catch (err) {
+        setError('Kunde inte hämta statistik');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-red-500">{error || 'Kunde inte ladda statistik'}</div>
+      </div>
+    );
+  }
+
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('sv-SE', {
+      style: 'currency',
+      currency: 'SEK'
+    });
+  };
+
+  const formatDate = (dateStr: string) => {
+    return format(new Date(dateStr), 'd MMM', { locale: sv });
+  };
 
   return (
     <SidebarProvider defaultOpen>
@@ -103,6 +164,90 @@ const Dashboard = () => {
                 <ImportHistory />
               </TabsContent>
             </Tabs>
+
+            {/* Statistik kort */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Dagens ordrar</CardTitle>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.orders_today}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Dagens omsättning</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.sales_today)}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Ordrar senaste 7 dagarna</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.orders_this_week}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Omsättning senaste 7 dagarna</CardTitle>
+                  <BarChart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.sales_this_week)}</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Försäljningsgraf */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Daglig omsättning senaste veckan</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={stats.daily_sales}
+                      margin={{
+                        top: 5,
+                        right: 30,
+                        left: 20,
+                        bottom: 5
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={formatDate}
+                      />
+                      <YAxis
+                        tickFormatter={(value) => formatCurrency(value)}
+                      />
+                      <Tooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                        labelFormatter={formatDate}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="amount"
+                        stroke="#8884d8"
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </SidebarInset>
       </div>

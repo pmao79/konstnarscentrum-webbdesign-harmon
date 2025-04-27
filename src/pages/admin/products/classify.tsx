@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useToast } from '../../../components/ui/use-toast';
+import { Button } from '../../../components/ui/button';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Badge } from '../../../components/ui/badge';
 
 // Interface för oklassificerad produkt
 interface UnclassifiedProduct {
@@ -34,10 +33,10 @@ interface AvailableFilters {
 
 // Interface för klassificeringsdata
 interface ClassificationData {
-  kategoriId: string;
-  underkategoriId: string;
-  varumarkeId: string;
-  produktgruppId: string;
+  kategori: string;
+  underkategori: string;
+  varumärke: string;
+  produktgrupp: string;
 }
 
 export default function ProductClassification() {
@@ -76,10 +75,10 @@ export default function ProductClassification() {
         // Initiera klassificeringar med befintliga värden
         const initialClassifications = productsData.reduce((acc: { [key: string]: ClassificationData }, product) => {
           acc[product.id] = {
-            kategoriId: product.kategori || '',
-            underkategoriId: product.underkategori || '',
-            varumarkeId: product.varumärke || '',
-            produktgruppId: product.produktgrupp || ''
+            kategori: product.kategori || '',
+            underkategori: product.underkategori || '',
+            varumärke: product.varumärke || '',
+            produktgrupp: product.produktgrupp || ''
           };
           return acc;
         }, {});
@@ -108,7 +107,7 @@ export default function ProductClassification() {
         ...prev[productId],
         [field]: value,
         // Nollställ underkategori om kategori ändras
-        ...(field === 'kategoriId' ? { underkategoriId: '' } : {})
+        ...(field === 'kategori' ? { underkategori: '' } : {})
       }
     }));
   };
@@ -118,8 +117,8 @@ export default function ProductClassification() {
     const classification = classifications[productId];
     
     // Validera att alla fält är ifyllda
-    if (!classification.kategoriId || !classification.underkategoriId || 
-        !classification.varumarkeId || !classification.produktgruppId) {
+    if (!classification.kategori || !classification.underkategori || 
+        !classification.varumärke || !classification.produktgrupp) {
       toast({
         variant: "destructive",
         title: "Fel",
@@ -164,6 +163,12 @@ export default function ProductClassification() {
     }
   };
 
+  // Kontrollera om en produkt saknar klassificering
+  const isMissingClassification = (product: UnclassifiedProduct) => {
+    return !product.kategori || !product.underkategori || 
+           !product.varumärke || !product.produktgrupp;
+  };
+
   // Filtrera underkategorier baserat på vald kategori
   const getFilteredSubcategories = (kategori: string) => {
     return availableFilters.underkategorier.filter(uk => 
@@ -191,85 +196,101 @@ export default function ProductClassification() {
       {!loading && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Artikelnummer</TableHead>
-                  <TableHead>Produktnamn</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Underkategori</TableHead>
-                  <TableHead>Varumärke</TableHead>
-                  <TableHead>Produktgrupp</TableHead>
-                  <TableHead className="text-right">Åtgärder</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Artikelnummer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Produktnamn
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Kategori
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Underkategori
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Varumärke
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Produktgrupp
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Åtgärder
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
                 {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.artikelnummer}</TableCell>
-                    <TableCell>{product.namn}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={classifications[product.id]?.kategoriId || ''}
-                        onValueChange={(value) => handleClassificationChange(product.id, 'kategoriId', value)}
+                  <tr key={product.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {product.artikelnummer}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        {product.namn}
+                      </div>
+                      {isMissingClassification(product) && (
+                        <Badge variant="destructive" className="mt-1">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Saknar klassificering
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={classifications[product.id]?.kategori || ''}
+                        onChange={(e) => handleClassificationChange(product.id, 'kategori', e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Välj kategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableFilters.kategorier.map(kategori => (
-                            <SelectItem key={kategori} value={kategori}>{kategori}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={classifications[product.id]?.underkategoriId || ''}
-                        onValueChange={(value) => handleClassificationChange(product.id, 'underkategoriId', value)}
-                        disabled={!classifications[product.id]?.kategoriId}
+                        <option value="">Välj kategori</option>
+                        {availableFilters.kategorier.map(kategori => (
+                          <option key={kategori} value={kategori}>{kategori}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={classifications[product.id]?.underkategori || ''}
+                        onChange={(e) => handleClassificationChange(product.id, 'underkategori', e.target.value)}
+                        disabled={!classifications[product.id]?.kategori}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Välj underkategori" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getFilteredSubcategories(classifications[product.id]?.kategoriId || '').map(underkategori => (
-                            <SelectItem key={underkategori} value={underkategori}>{underkategori}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={classifications[product.id]?.varumarkeId || ''}
-                        onValueChange={(value) => handleClassificationChange(product.id, 'varumarkeId', value)}
+                        <option value="">Välj underkategori</option>
+                        {getFilteredSubcategories(classifications[product.id]?.kategori || '').map(underkategori => (
+                          <option key={underkategori} value={underkategori}>{underkategori}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={classifications[product.id]?.varumärke || ''}
+                        onChange={(e) => handleClassificationChange(product.id, 'varumärke', e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Välj varumärke" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableFilters.varumärken.map(varumärke => (
-                            <SelectItem key={varumärke} value={varumärke}>{varumärke}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={classifications[product.id]?.produktgruppId || ''}
-                        onValueChange={(value) => handleClassificationChange(product.id, 'produktgruppId', value)}
+                        <option value="">Välj varumärke</option>
+                        {availableFilters.varumärken.map(varumärke => (
+                          <option key={varumärke} value={varumärke}>{varumärke}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={classifications[product.id]?.produktgrupp || ''}
+                        onChange={(e) => handleClassificationChange(product.id, 'produktgrupp', e.target.value)}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Välj produktgrupp" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableFilters.produktgrupper.map(grupp => (
-                            <SelectItem key={grupp} value={grupp}>{grupp}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-right">
+                        <option value="">Välj produktgrupp</option>
+                        {availableFilters.produktgrupper.map(grupp => (
+                          <option key={grupp} value={grupp}>{grupp}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <Button
                         onClick={() => handleSaveClassification(product.id)}
                         disabled={saving[product.id]}
@@ -287,11 +308,11 @@ export default function ProductClassification() {
                           </>
                         )}
                       </Button>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -308,4 +329,4 @@ export default function ProductClassification() {
       )}
     </div>
   );
-}
+} 
